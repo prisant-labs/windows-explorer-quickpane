@@ -1,0 +1,124 @@
+name: release
+# Pushing a version tag such as v3.10.0.3 builds, tests, and packages exactly that commit, records
+# where the files came from (a build provenance attestation), and puts them on a DRAFT release.
+# A person checks the draft's zip on a real desktop, then publishes it. The in-app update check
+# reads releases/latest, which skips drafts, so nobody is offered a build before that check.
+#
+# Run it by hand (Actions, release, Run workflow) for a dry run: it builds, tests, and packages
+# the chosen branch and keeps the files as an artifact, but touches no release and no tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write      # create or update the draft release
+      id-token: write      # sign the provenance attestation
+      attestations: write  # store it
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the tag check below needs origin/main
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      # The tag arrives through env, not ${{ }} inside the script, so a tag name can never
+      # become code.
+      - name: Check the tag
+        id: tag
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:TAG -notmatch '^v(\d+\.\d+\.\d+\.\d+)$') {
+              throw "Tag $env:TAG is not v<major>.<minor>.<patch>.<fork>, such as v3.10.0.3."
+          }
+          $version = $Matches[1]
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw "Tag $env:TAG points at a commit that is not on main." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build the app
+        shell: pwsh
+        run: ./scripts/build.ps1 -Configuration Release
+
+      - name: Run the tests
+        shell: pwsh
+        run: ./scripts/test.ps1 -Configuration Release -NoBuild
+
+      # Refuses when the built exe's version differs from the tag, which catches a tag pushed
+      # without the AssemblyInfo.cs bump.
+      - name: Package the build
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          if ($env:VERSION) { ./scripts/package.ps1 -Configuration Release -Version $env:VERSION }
+          else { ./scripts/package.ps1 -Configuration Release }
+
+      - name: Keep the packaged build
+        uses: actions/upload-artifact@v7
+        with:
+          name: QuickPane-release
+          path: dist/
+
+      # Covers every file SHA256SUMS.txt lists: the zip and each file inside it. Anyone can then
+      # check a download with: gh attestation verify <file> -R prisant-labs/windows-explorer-quickpane
+      - name: Attest where the files came from
+        if: github.ref_type == 'tag'
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-checksums: dist/SHA256SUMS.txt
+
+      - name: Put the files on a draft release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          REPO: ${{ github.repository }}
+        run: |
+          $title = "QuickPane $env:VERSION (fork)"
+          $assets = @((Get-ChildItem dist/*.zip).FullName) + (Resolve-Path dist/SHA256SUMS.txt).Path
+          $json = gh release view $env:TAG -R $env:REPO --json isDraft 2>$null
+          $existing = if ($LASTEXITCODE -eq 0) { $json | ConvertFrom-Json } else { $null }
+          if ($existing -and -not $existing.isDraft) {
+              throw "Release $env:TAG is already published. Bump the version and push a new tag."
+          }
+          if ($existing) {
+              # Refresh the draft in place, so it keeps its page and anything already written on it.
+              gh release upload $env:TAG @assets -R $env:REPO --clobber
+              if ($LASTEXITCODE -ne 0) { throw 'Uploading to the existing draft failed.' }
+              gh release edit $env:TAG -R $env:REPO --title $title --notes-file dist/notes.md --prerelease=false --target $env:GITHUB_SHA
+              if ($LASTEXITCODE -ne 0) { throw 'Updating the existing draft failed.' }
+          } else {
+              # A full release, not a pre-release: releases/latest never returns a pre-release.
+              gh release create $env:TAG @assets -R $env:REPO --draft --verify-tag --title $title --notes-file dist/notes.md
+              if ($LASTEXITCODE -ne 0) { throw 'Creating the draft release failed.' }
+          }
+          # A draft once came back with tag_name "untagged-..." and would have published under it.
+          $made = gh release view $env:TAG -R $env:REPO --json tagName,isDraft | ConvertFrom-Json
+          if ($made.tagName -ne $env:TAG -or -not $made.isDraft) {
+              throw "Expected a draft for $env:TAG, got tag '$($made.tagName)', draft=$($made.isDraft)."
+          }
+          @"
+          ### Draft release ready: $env:TAG
+
+          Test the zip on a real desktop, then publish:
+
+          ``gh release edit $env:TAG --draft=false -R $env:REPO``
+          "@ >> $env:GITHUB_STEP_SUMMARY

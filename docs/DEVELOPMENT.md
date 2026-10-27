@@ -42,7 +42,9 @@ The tests live in `tests/QuickPane.Tests`, an SDK-style `net48` NUnit project. I
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push to `main` and on every pull request. It calls the same two scripts on `windows-latest` and keeps the built exe as a workflow artifact. CI cannot exercise the app itself: Explorer windows, window hooks, and file dialogs need a real desktop.
+`.github/workflows/ci.yml` runs on every push to `main` and on every pull request. It calls the same scripts on `windows-latest`: build, test, and `scripts/package.ps1`, which makes the release zip, `SHA256SUMS.txt`, and the release notes. It keeps that packaged output as a workflow artifact. Packaging runs on every build so that a broken release step fails a pull request rather than a tag. It also fails when the version in `AssemblyInfo.cs` has no release document and no changelog section yet. CI cannot exercise the app itself: Explorer windows, window hooks, and file dialogs need a real desktop.
+
+`.github/workflows/release.yml` runs when a `v*` tag is pushed. It is described under [Releasing the fork](#releasing-the-fork).
 
 `main` is protected. A change reaches it only through a pull request whose `build-and-test` check passed, and the rule applies to administrators too. No approving review is required, because GitHub does not let authors approve their own pull requests. Force-pushes to `main` and deleting `main` are blocked, and merged branches are deleted automatically. The rule lives in the repository's Settings, under Branches.
 
@@ -93,9 +95,12 @@ The `upstream` remote points at `lso2/QuickPane`, and `origin` points at this fo
 1. Set the version in `QuickPane/Properties/AssemblyInfo.cs` (both attributes) and in `Installer.iss`. Fork versions add a fourth number to the upstream base, for example 3.10.0.1.
 2. Add a `CHANGELOG.md` entry with Added, Changed, and Fixed sections, linking upstream issues where they exist. When a release needs more than its changelog section, write a full release document in `docs/releases/<version>.md`, as for 3.10.0.2, the first published fork release.
 3. Merge to `main` through a pull request with green CI.
-4. Build from `main` with `scripts/test.ps1`.
-5. Zip `QuickPane.exe` and `QuickPane.exe.config`, and record the SHA-256 of each file in `SHA256SUMS.txt`.
-6. Create a **draft** GitHub release for tag `v<version>` with the zip, the checksums, and notes taken from `docs/releases/<version>.md` when it exists, or otherwise from the changelog. A draft stays private and creates no tag. Check that the draft's tag name is `v<version>`, not `untagged-...`, or publishing creates the wrong tag.
-7. Test the build on a real desktop, then publish the draft as a full release, not a pre-release. The in-app update check reads `releases/latest`, which never returns a pre-release.
+4. Tag the merged commit on `main` and push the tag: `git tag -a v<version> -m "QuickPane <version>"`, then `git push origin v<version>`.
+5. The `release` workflow then runs on that exact commit. It refuses a tag that is not four-part, a tagged commit that is not on `main`, and an exe whose version differs from the tag. It builds, tests, packages, and attests the files' provenance. Then it creates a **draft** release for the tag with the zip and `SHA256SUMS.txt`, or refreshes the draft that already exists for that tag. It never touches a published release. Its run summary prints the publish command.
+6. Download the zip from the draft, test it on a real desktop, then publish the draft: `gh release edit v<version> --draft=false -R prisant-labs/windows-explorer-quickpane`. Publish it as a full release, not a pre-release. The in-app update check reads `releases/latest`, which never returns drafts or pre-releases.
+
+If the desktop test fails, fix the bug on `main`. Then bump the version, and tag again. Do not move a pushed tag. To try the workflow without releasing anything, run it by hand from the Actions tab: a run that no tag started builds, tests, and packages, keeps the files as an artifact, and creates no release.
+
+Anyone can check that a download was built by this workflow from this repository: `gh attestation verify QuickPane-<version>-x64.zip -R prisant-labs/windows-explorer-quickpane`.
 
 The binaries are not code-signed. To install a fork build over an installed copy, close QuickPane with `--exit` and replace `QuickPane.exe` in `%LOCALAPPDATA%\QuickPane`. Add/Remove Programs keeps showing the installed version until an installer built from this fork is used.
