@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.2] - 2026-10-22
+## [3.10.0.2] - 2026-10-27
 
 This release includes every change listed under 3.10.0.1 in [CHANGELOG.md](https://github.com/prisant-labs/windows-explorer-quickpane/blob/main/CHANGELOG.md), plus the fixes below.
 
