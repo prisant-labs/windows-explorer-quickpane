@@ -366,10 +366,6 @@ QuickPane/
 6. Push to the branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
 
-## Author
-
-PlexPixel ([plexpixel.com](https://plexpixel.com))
-
 ## License
 
 MIT, see the [LICENSE](LICENSE) file for details.
@@ -377,19 +373,6 @@ MIT, see the [LICENSE](LICENSE) file for details.
 ---
 
 **⭐ If QuickPane made Explorer feel like home, please star the repository!**
-
-## ☕ Buy me a coffee
-
-If QuickPane saves you time every day, consider supporting its development.
-
-[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://plexpixel.com/donate)
-
-**Why support?**
-
-- ☕ Fuel continued development
-- 🚀 New features and modes
-- 🐛 Faster fixes and updates
-- 📚 Better documentation
 
 ---
 
