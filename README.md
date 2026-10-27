@@ -8,6 +8,18 @@
 ![License](https://img.shields.io/badge/License-MIT-orange.svg)
 
 > **About this fork.** This is a fork of [lso2/QuickPane](https://github.com/lso2/QuickPane). It adds fixes that were first reported upstream as issues, plus unit tests and CI. Fork versions carry a fourth number (for example 3.10.0.1), and [CHANGELOG.md](CHANGELOG.md) lists what each one changes. To build from source, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). The in-app update notice checks this fork's releases, not upstream's. Everything below this note is upstream's README.
+>
+> **What this fork adds.** Each item links to the release notes for the version that first shipped it. Downloads are on the [Releases](https://github.com/prisant-labs/windows-explorer-quickpane/releases) page.
+>
+> - **Windows 11 tabs:** every tab in an Explorer window makes room for the pane, including tabs opened later, so the pane no longer covers Explorer's sidebar or hides under a tab. [3.10.0.2](docs/releases/3.10.0.2.md) ([#4](https://github.com/prisant-labs/windows-explorer-quickpane/issues/4), [lso2/QuickPane#3](https://github.com/lso2/QuickPane/issues/3))
+> - **Add to a tab:** a tab's right-click menu has "Add folder..." and "Add file...", and the pin lands in that tab. [3.10.0.2](docs/releases/3.10.0.2.md) ([lso2/QuickPane#1](https://github.com/lso2/QuickPane/issues/1))
+> - **Safer "Delete tab":** deleting a tab that holds pins asks first, and sends the tab's folder to the Recycle Bin. [3.10.0.2](docs/releases/3.10.0.2.md) ([lso2/QuickPane#5](https://github.com/lso2/QuickPane/issues/5))
+> - **Profile row:** the profile row appears only once a second profile exists. [3.10.0.2](docs/releases/3.10.0.2.md) ([#5](https://github.com/prisant-labs/windows-explorer-quickpane/issues/5))
+> - **File dialogs setting:** the pane in Open and Save dialogs can follow Explorer windows, sit beside the dialog, or stay off. [3.10.0.2](docs/releases/3.10.0.2.md)
+> - **Browse in "Edit path":** the "Edit path" prompt has a "Browse..." button that opens a picker at the pin's current location. [3.10.0.2](docs/releases/3.10.0.2.md)
+> - **Modern folder picker:** choosing a folder opens the Explorer-style picker instead of the old "Browse For Folder" tree. [3.10.0.2](docs/releases/3.10.0.2.md) ([lso2/QuickPane#2](https://github.com/lso2/QuickPane/issues/2))
+> - **Update notice follows this fork:** the Settings footer checks this fork's releases and shows the full four-part version. [3.10.0.2](docs/releases/3.10.0.2.md) ([#2](https://github.com/prisant-labs/windows-explorer-quickpane/pull/2))
+> - **Tested, verifiable builds:** 61 unit tests and a build on every pull request, and releases built from the tagged commit with checksums and a provenance attestation. [3.10.0.2](docs/releases/3.10.0.2.md)
 
 A folder sidebar for Windows File Explorer. QuickPane embeds a pinned-folders pane inside every Explorer window, so your groups, recent locations, drives, network shares, and WSL distros travel with the window you are already using. Pin it inside the window, float it beside the window, or run it as a slim screen-edge dock. Everything runs locally as a single tray app, no code is ever injected into Explorer, and all data stays in plain files under your user profile.
 
