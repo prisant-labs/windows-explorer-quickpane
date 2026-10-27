@@ -2,15 +2,15 @@
 
 ## [3.10.0.2] - 2026-10-22
 
-This release includes every change listed under 3.10.0.1 in [CHANGELOG.md](https://github.com/jprisant/QuickPane/blob/main/CHANGELOG.md), plus the fixes below.
+This release includes every change listed under 3.10.0.1 in [CHANGELOG.md](https://github.com/prisant-labs/windows-explorer-quickpane/blob/main/CHANGELOG.md), plus the fixes below.
 
 ### Fixed
-- In a Windows 11 Explorer window with more than one tab, only one tab made room for the pane. Every other tab stayed at full width, so either the pane covered Explorer's navigation pane or the tab covered the pane. Every tab now makes room, including tabs opened later, and the layout keeps working after the first tab is closed ([#4](https://github.com/jprisant/QuickPane/issues/4), [lso2/QuickPane#3](https://github.com/lso2/QuickPane/issues/3)).
-- The pane showed its profile row even with only one profile, as a lone "Profile 1" chip that switched nothing. The row now appears once a second profile exists ([#5](https://github.com/jprisant/QuickPane/issues/5)).
+- In a Windows 11 Explorer window with more than one tab, only one tab made room for the pane. Every other tab stayed at full width, so either the pane covered Explorer's navigation pane or the tab covered the pane. Every tab now makes room, including tabs opened later, and the layout keeps working after the first tab is closed ([#4](https://github.com/prisant-labs/windows-explorer-quickpane/issues/4), [lso2/QuickPane#3](https://github.com/lso2/QuickPane/issues/3)).
+- The pane showed its profile row even with only one profile, as a lone "Profile 1" chip that switched nothing. The row now appears once a second profile exists ([#5](https://github.com/prisant-labs/windows-explorer-quickpane/issues/5)).
 
 ## [3.10.0.1] - 2026-10-21
 
-Never published as a release. Its changes first shipped in 3.10.0.2, the first published release of the jprisant/QuickPane fork. Both build on upstream 3.10.0. Fork releases add a fourth version number to the upstream version they build on.
+Never published as a release. Its changes first shipped in 3.10.0.2, the first published release of the prisant-labs/windows-explorer-quickpane fork. Both build on upstream 3.10.0. Fork releases add a fourth version number to the upstream version they build on.
 
 ### Added
 - A "File dialogs" setting on the Pane tab, so the pane in Open and Save dialogs can follow Explorer windows, sit beside the dialog, or stay off.

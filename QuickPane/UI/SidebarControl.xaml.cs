@@ -369,7 +369,7 @@ namespace QuickPane.UI
 
         /// <summary>The row exists to switch profiles, so it earns its space only when there is another
         /// profile to switch to. Every install starts with one profile, and the row used to show it as a
-        /// lone "Profile 1" chip that did nothing (jprisant/QuickPane#5). Adding a profile saves the
+        /// lone "Profile 1" chip that did nothing (prisant-labs/windows-explorer-quickpane#5). Adding a profile saves the
         /// settings, which rebuilds the pane, so the row appears without a restart.</summary>
         internal static bool ShouldShowProfileTabs(bool rowEnabled, bool paneCollapsed, int profileCount)
         {

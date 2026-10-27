@@ -63,7 +63,7 @@ namespace QuickPane.Explorer
         /// Walk this window's content hosts: pass IntPtr.Zero for the first, then the previous host.
         /// Windows 11 gives every Explorer tab its own ShellTabWindowClass child. All of them stay
         /// visible, with the active tab on top, so shifting only the one found at attach left every
-        /// other tab at full width, over or under the pane (lso2/QuickPane#3, jprisant/QuickPane#4).
+        /// other tab at full width, over or under the pane (lso2/QuickPane#3, prisant-labs/windows-explorer-quickpane#4).
         /// The tabs are walked live on every pass because they open and close while the window lives;
         /// a cached handle also stopped all layout once the tab it named was closed. FindWindowEx
         /// allocates nothing, so the enforcer thread can walk at its burst rate. If a tab closes
