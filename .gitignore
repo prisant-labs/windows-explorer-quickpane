@@ -1,6 +1,7 @@
 # Build output
 output/
 dist/
+Output/
 [Bb]in/
 [Oo]bj/
 [Dd]ebug/

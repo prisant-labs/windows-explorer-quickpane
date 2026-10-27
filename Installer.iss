@@ -13,7 +13,7 @@
 ; The version is read from the built program, so AssemblyInfo.cs stays the one place to set it and the
 ; installer can never disagree with the exe it carries. package.ps1 passes both values explicitly.
 #ifndef MyBinDir
-  #define MyBinDir SourcePath + "QuickPane\bin\x64\Release"
+  #define MyBinDir AddBackslash(SourcePath) + "QuickPane\bin\x64\Release"
 #endif
 #ifndef MyAppVersion
   #define MyAppVersion GetVersionNumbersString(MyBinDir + "\QuickPane.exe")
