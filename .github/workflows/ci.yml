@@ -18,10 +18,13 @@ jobs:
       - name: Run the tests
         shell: pwsh
         run: ./scripts/test.ps1 -Configuration Release -NoBuild
-      - name: Keep the built exe
+      # Packaging runs on every build, so a broken release step shows up in a pull request,
+      # not after a tag has been pushed.
+      - name: Package the build
+        shell: pwsh
+        run: ./scripts/package.ps1 -Configuration Release
+      - name: Keep the packaged build
         uses: actions/upload-artifact@v7
         with:
           name: QuickPane-x64-Release
-          path: |
-            QuickPane/bin/x64/Release/QuickPane.exe
-            QuickPane/bin/x64/Release/QuickPane.exe.config
+          path: dist/

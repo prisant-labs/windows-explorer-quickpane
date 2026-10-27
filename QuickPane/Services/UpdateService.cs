@@ -45,8 +45,8 @@ namespace QuickPane.Services
         // The fork's own releases, not upstream's. Offering upstream's installer to someone running a
         // fork build is a downgrade: it replaces the fork's fixes until the fork merges and releases.
         // `releases/latest` skips drafts and pre-releases, so fork releases must be published as full ones.
-        private const string LatestReleaseApi = "https://api.github.com/repos/jprisant/QuickPane/releases/latest";
-        private const string ReleasesPage = "https://github.com/jprisant/QuickPane/releases/latest";
+        private const string LatestReleaseApi = "https://api.github.com/repos/prisant-labs/windows-explorer-quickpane/releases/latest";
+        private const string ReleasesPage = "https://github.com/prisant-labs/windows-explorer-quickpane/releases/latest";
 
         /// <summary>The running build's version, from the assembly rather than a constant.</summary>
         public static Version Current
