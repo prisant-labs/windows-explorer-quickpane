@@ -1726,7 +1726,7 @@ namespace QuickPane.UI
                 Cursor = Cursors.Hand,
                 FontSize = 13,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = Brushes.White,
+                Foreground = UiHelpers.AppBrush("TextOnAccent"),
                 Background = UiHelpers.AppBrush("AccentBrush"),
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(14, 6, 14, 6),

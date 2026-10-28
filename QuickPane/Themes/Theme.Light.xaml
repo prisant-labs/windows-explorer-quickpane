@@ -25,5 +25,7 @@
     <SolidColorBrush x:Key="AccentBrush"          Color="#FF0078D4" />
     <SolidColorBrush x:Key="ItemHoverBackground"  Color="#260078D4" />
     <SolidColorBrush x:Key="ItemActiveBackground" Color="#330078D4" />
+    <!-- Text on a full accent fill. A contrast theme replaces it with HighlightText. -->
+    <SolidColorBrush x:Key="TextOnAccent"         Color="#FFFFFFFF" />
 
 </ResourceDictionary>
