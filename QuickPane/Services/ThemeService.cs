@@ -1,7 +1,9 @@
 using System;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.Win32;
+using NM = QuickPane.Interop.NativeMethods;
 
 namespace QuickPane.Services
 {
@@ -68,9 +70,32 @@ namespace QuickPane.Services
             ThemeChanged?.Invoke();
         }
 
-        /// <summary>Windows hosted as HwndSource roots fall back to Application resources, so this
-        /// is a no-op kept for call-site clarity. It exists so callers do not have to know that.</summary>
-        public void AttachWindow(Window window) { }
+        /// <summary>Windows hosted as HwndSource roots fall back to Application resources, so brushes
+        /// need nothing here. The title bar does: Windows draws it and keeps it light unless asked, so
+        /// a dark Settings window had a white one (#26). Windows without a standard frame (the panes,
+        /// the dock, the borderless prompts) draw their own chrome and are left alone.</summary>
+        public void AttachWindow(Window window)
+        {
+            if (window == null || window.WindowStyle == WindowStyle.None) return;
+            Action apply = () => ApplyTitleBar(window);
+            window.SourceInitialized += (s, e) => apply();
+            ThemeChanged += apply;
+            window.Closed += (s, e) => ThemeChanged -= apply;
+            apply();   // a no-op until the window has a handle; SourceInitialized covers that case
+        }
+
+        private void ApplyTitleBar(Window window)
+        {
+            var hwnd = new WindowInteropHelper(window).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            int dark = IsDark ? 1 : 0;
+            if (NM.DwmSetWindowAttribute(hwnd, NM.DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int)) != 0)
+                NM.DwmSetWindowAttribute(hwnd, NM.DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1, ref dark, sizeof(int));
+            // The title bar of a window already on screen keeps its old colours until the frame is
+            // redrawn, so a theme switch would show only after the next activation without this.
+            NM.SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
+                NM.SWP_NOMOVE | NM.SWP_NOSIZE | NM.SWP_NOZORDER | NM.SWP_NOACTIVATE | NM.SWP_FRAMECHANGED);
+        }
 
         private void ReadRegistry()
         {
