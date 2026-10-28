@@ -86,7 +86,7 @@ namespace QuickPane.UI
             var close = new Button
             {
                 Content = "", // ChromeClose
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontFamily = UiHelpers.IconFont(),
                 FontSize = 12,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
