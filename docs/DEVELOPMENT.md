@@ -8,7 +8,7 @@ This guide covers building, testing, and releasing this fork. The README describ
 - Visual Studio or the Visual Studio Build Tools, 2019 or later, with MSBuild and the .NET desktop build tools.
 - The .NET 8 SDK, which runs the unit tests.
 - The .NET Framework 4.8 targeting pack is optional. `scripts/build.ps1` downloads Microsoft's signed reference-assembly package when the pack is missing.
-- Inno Setup, only to build the installer.
+- Inno Setup 6, which `scripts/package.ps1` uses to build the installer. CI pins 6.7.1. Without it, pass `-NoInstaller` to package only the zip.
 
 ## Build
 
@@ -42,7 +42,7 @@ The tests live in `tests/QuickPane.Tests`, an SDK-style `net48` NUnit project. I
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push to `main` and on every pull request. It calls the same scripts on `windows-latest`: build, test, and `scripts/package.ps1`, which makes the release zip, `SHA256SUMS.txt`, and the release notes. It keeps that packaged output as a workflow artifact. Packaging runs on every build so that a broken release step fails a pull request rather than a tag. It also fails when the version in `AssemblyInfo.cs` has no release document and no changelog section yet. CI cannot exercise the app itself: Explorer windows, window hooks, and file dialogs need a real desktop.
+`.github/workflows/ci.yml` runs on every push to `main` and on every pull request. It calls the same scripts on `windows-latest`: build, test, and `scripts/package.ps1`, which makes the installer, the release zip, `SHA256SUMS.txt`, and the release notes. It keeps that packaged output as a workflow artifact. Packaging runs on every build so that a broken release step fails a pull request rather than a tag. It also fails when the version in `AssemblyInfo.cs` has no release document and no changelog section yet. CI cannot exercise the app itself: Explorer windows, window hooks, and file dialogs need a real desktop.
 
 `.github/workflows/release.yml` runs when a `v*` tag is pushed. It is described under [Releasing the fork](#releasing-the-fork).
 
@@ -92,15 +92,15 @@ The `upstream` remote points at `lso2/QuickPane`, and `origin` points at this fo
 
 ## Releasing the fork
 
-1. Set the version in `QuickPane/Properties/AssemblyInfo.cs` (both attributes) and in `Installer.iss`. Fork versions add a fourth number to the upstream base, for example 3.10.0.1.
+1. Set the version in `QuickPane/Properties/AssemblyInfo.cs` (both attributes). `Installer.iss` reads it from the built program. Fork versions add a fourth number to the upstream base, for example 3.10.0.1.
 2. Add a `CHANGELOG.md` entry with Added, Changed, and Fixed sections, linking upstream issues where they exist. When a release needs more than its changelog section, write a full release document in `docs/releases/<version>.md`, as for 3.10.0.2, the first published fork release.
 3. Merge to `main` through a pull request with green CI.
 4. Tag the merged commit on `main` and push the tag: `git tag -a v<version> -m "QuickPane <version>"`, then `git push origin v<version>`.
-5. The `release` workflow then runs on that exact commit. It refuses a tag that is not four-part, a tagged commit that is not on `main`, and an exe whose version differs from the tag. It builds, tests, packages, and attests the files' provenance. Then it creates a **draft** release for the tag with the zip and `SHA256SUMS.txt`, or refreshes the draft that already exists for that tag. It never touches a published release. Its run summary prints the publish command.
-6. Download the zip from the draft, test it on a real desktop, then publish the draft: `gh release edit v<version> --draft=false -R prisant-labs/windows-explorer-quickpane`. Publish it as a full release, not a pre-release. The in-app update check reads `releases/latest`, which never returns drafts or pre-releases.
+5. The `release` workflow then runs on that exact commit. It refuses a tag that is not four-part, a tagged commit that is not on `main`, and an exe whose version differs from the tag. It builds, tests, packages, and attests the files' provenance. Then it creates a **draft** release for the tag with the installer, the zip, and `SHA256SUMS.txt`, or refreshes the draft that already exists for that tag. It never touches a published release. Its run summary prints the publish command.
+6. Download the installer from the draft, run it over an existing install on a real desktop, and test it. Then publish the draft: `gh release edit v<version> --draft=false -R prisant-labs/windows-explorer-quickpane`. Publish it as a full release, not a pre-release. The in-app update check reads `releases/latest`, which never returns drafts or pre-releases.
 
 If the desktop test fails, fix the bug on `main`. Then bump the version, and tag again. Do not move a pushed tag. To try the workflow without releasing anything, run it by hand from the Actions tab: a run that no tag started builds, tests, and packages, keeps the files as an artifact, and creates no release.
 
 Anyone can check that a download was built by this workflow from this repository: `gh attestation verify QuickPane-<version>-x64.zip -R prisant-labs/windows-explorer-quickpane`.
 
-The binaries are not code-signed. To install a fork build over an installed copy, close QuickPane with `--exit` and replace `QuickPane.exe` in `%LOCALAPPDATA%\QuickPane`. Add/Remove Programs keeps showing the installed version until an installer built from this fork is used.
+The binaries are not code-signed. The installer reuses the original project's AppId on purpose, so it upgrades an existing install and its Add/Remove Programs entry in place; `Installer.iss` explains why a new AppId would be worse. To try a build without the installer, close QuickPane with `--exit` and replace `QuickPane.exe` in `%LOCALAPPDATA%\QuickPane`. Add/Remove Programs then keeps showing the previously installed version.

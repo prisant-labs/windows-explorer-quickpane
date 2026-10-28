@@ -150,14 +150,14 @@ Section headers, groups, and folder subtrees remember whether they are open, key
 
 ### Option A: Run a release build
 
-1. Download the latest `QuickPaneSetup.exe` from the Releases page (or build it yourself below)
-2. Run the installer. It installs per-user with no administrator rights, registers the **Pin to Quick Pane** folder verb, adds a startup entry, and launches QuickPane
+1. Download the latest `QuickPane-<version>-x64-setup.exe` from the [Releases page](https://github.com/prisant-labs/windows-explorer-quickpane/releases/latest) (or build it yourself below)
+2. Run the installer. It installs per-user with no administrator rights, registers the **Pin to Quick Pane** folder verb, adds a startup entry, and launches QuickPane. Over an existing QuickPane, it upgrades that install in place
 3. Open any Explorer window and the pane appears inside it
 
 ### Option B: Build from source
 
 ```bash
-git clone https://github.com/lso2/QuickPane.git
+git clone https://github.com/prisant-labs/windows-explorer-quickpane.git
 ```
 
 **Build the app**
@@ -169,11 +169,10 @@ git clone https://github.com/lso2/QuickPane.git
 
 **Build the installer (optional)**
 
-1. Build the app first so `QuickPane.exe` exists at the path referenced in `[Files]`
-2. Open `Installer.iss` in Inno Setup and press **Compile**
-3. The single-file `QuickPaneSetup.exe` is produced in the output folder
+1. Build the app first, then run `pwsh -File scripts/package.ps1`
+2. The single-file `QuickPane-<version>-x64-setup.exe` is produced in `dist\`, beside the zip and `SHA256SUMS.txt`
 
-> The installer's `[Files]` source points at the `Release\x64` output. If you build `Debug`, change `Release` to `Debug` in `Installer.iss`.
+> `package.ps1` passes the build's folder and version to `Installer.iss`, so it works for `-Configuration Debug` too. Opening `Installer.iss` in Inno Setup and pressing **Compile** packages the `Release\x64` build.
 
 ### Recommended: hide Explorer's own navigation pane
 

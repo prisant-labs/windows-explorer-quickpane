@@ -1,15 +1,18 @@
-# Packages a built QuickPane for release: QuickPane-<version>-x64.zip holding the program and its
-# license, SHA256SUMS.txt for the zip and each file in it, and notes.md for the release page.
+# Packages a built QuickPane for release: the installer QuickPane-<version>-x64-setup.exe, built
+# from Installer.iss with Inno Setup 6; QuickPane-<version>-x64.zip holding the program and its
+# license; SHA256SUMS.txt for both and for each file in the zip; and notes.md for the release page.
 # CI runs it on every build, so packaging is proven before anyone pushes a tag; the release
 # workflow runs it on the tagged commit. Run scripts/build.ps1 first.
 #
-# Usage:  pwsh -File scripts/package.ps1 [-Version 3.10.0.2] [-Configuration Release] [-OutDir dist] [-NoNotes]
-# Output: <OutDir>\QuickPane-<version>-x64.zip, SHA256SUMS.txt, and notes.md unless -NoNotes
+# Usage:  pwsh -File scripts/package.ps1 [-Version 3.10.0.3] [-Configuration Release] [-OutDir dist] [-NoNotes] [-NoInstaller]
+# Output: <OutDir>\QuickPane-<version>-x64-setup.exe unless -NoInstaller, QuickPane-<version>-x64.zip,
+#         SHA256SUMS.txt, and notes.md unless -NoNotes
 param(
     [string]$Version,
     [ValidateSet('Release', 'Debug')][string]$Configuration = 'Release',
     [string]$OutDir = 'dist',
-    [switch]$NoNotes
+    [switch]$NoNotes,
+    [switch]$NoInstaller
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
@@ -35,9 +38,27 @@ New-Item -ItemType Directory -Force $OutDir | Out-Null
 # LICENSE ships inside the zip because MIT requires the copyright notice to travel with copies.
 $zip = Join-Path $OutDir "QuickPane-$Version-x64.zip"
 Compress-Archive -Path $exe, $config, $license -DestinationPath $zip
+
+$packaged = @($exe, $config, $license, $zip)
+if (-not $NoInstaller) {
+    $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+    if (-not $iscc) {
+        $iscc = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+                  "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+    }
+    if (-not $iscc) { throw 'Inno Setup 6 (ISCC.exe) was not found. Install it from https://jrsoftware.org/isinfo.php, or pass -NoInstaller.' }
+    # Both values are passed so the installer carries exactly the build checked above, whatever the
+    # configuration, rather than whatever Installer.iss would find on its own.
+    & $iscc /Qp "/DMyAppVersion=$Version" "/DMyBinDir=$bin" "/O$OutDir" (Join-Path $repo 'Installer.iss')
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }
+    $setup = Join-Path $OutDir "QuickPane-$Version-x64-setup.exe"
+    if (-not (Test-Path $setup)) { throw "Inno Setup did not produce $setup." }
+    $packaged += $setup
+}
+
 $sums = Join-Path $OutDir 'SHA256SUMS.txt'
 @(
-    foreach ($f in $exe, $config, $license, $zip) {
+    foreach ($f in $packaged) {
         '{0}  {1}' -f (Get-FileHash $f -Algorithm SHA256).Hash.ToLowerInvariant(), (Split-Path $f -Leaf)
     }
 ) | Set-Content $sums -Encoding ascii
@@ -54,17 +75,22 @@ if (-not $NoNotes) {
         $cl = Get-Content (Join-Path $repo 'CHANGELOG.md') -Raw
         $m = [regex]::Match($cl, "(?ms)^## \[$([regex]::Escape($Version))\][^\n]*\n(.*?)(?=^## \[)")
         if (-not $m.Success) { throw "No docs\releases\$Version.md and no CHANGELOG.md section for $Version." }
-        $install = @'
+        $installSteps = @'
 ## Install
+
+Download `QuickPane-<version>-x64-setup.exe` and run it. It installs for the current user, with no administrator rights. Over an existing QuickPane, including one installed by the original project's installer, it closes QuickPane, replaces the program, and updates the same Add/Remove Programs entry. Your settings, groups, and pins in `%APPDATA%\QuickPane` stay where they are.
+
+The zip holds the same program, for replacing the files by hand instead:
 
 1. Close QuickPane, and wait for it to finish: `Start-Process "$env:LOCALAPPDATA\QuickPane\QuickPane.exe" -ArgumentList '--exit' -Wait`
 2. Keep a copy of the current `QuickPane.exe` in `%LOCALAPPDATA%\QuickPane`, so you can go back.
 3. Unzip the download, and copy `QuickPane.exe` and `QuickPane.exe.config` into `%LOCALAPPDATA%\QuickPane`, replacing the files there.
 4. Start `%LOCALAPPDATA%\QuickPane\QuickPane.exe` again.
 
-`SHA256SUMS.txt` lists the SHA-256 hash of the zip and of each file inside it. The files are not code-signed. This release also carries a GitHub build provenance attestation, which `gh attestation verify <file> -R prisant-labs/windows-explorer-quickpane` checks.
+`SHA256SUMS.txt` lists the SHA-256 hash of the installer, the zip, and each file inside the zip. The files are not code-signed, so Windows SmartScreen may warn before the installer first runs. This release also carries a GitHub build provenance attestation, which `gh attestation verify <file> -R prisant-labs/windows-explorer-quickpane` checks.
 '@
-        ($m.Groups[1].Value.Trim() + "`n`n" + $install) | Set-Content $notes -Encoding utf8
+        $installSteps = $installSteps.Replace('<version>', $Version)
+        ($m.Groups[1].Value.Trim() + "`n`n" + $installSteps) | Set-Content $notes -Encoding utf8
     }
     # Release notes are posted publicly, so stop on anything that looks like a local path.
     $hits = Select-String -Path $notes -Pattern '(?i)\b[a-z]:\\(users|projects)\\|onedrive'

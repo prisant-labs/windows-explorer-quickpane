@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.10.0.3] - Unreleased
+
+### Added
+- Each release includes an installer, `QuickPane-<version>-x64-setup.exe`, built by the release workflow and covered by its checksums and attestation. Run over an existing QuickPane, including one from the original project's installer, it upgrades that install in place, so Add/Remove Programs keeps one entry and shows the new version.
+- The installer puts `LICENSE.txt` beside the program.
+
+### Changed
+- Add/Remove Programs lists Prisant Labs as the publisher, and its links go to this fork.
+- The installer reads its version from the built program, so a release no longer needs `Installer.iss` edited.
+
 ## [3.10.0.2] - 2026-10-27
 
 This release includes every change listed under 3.10.0.1 in [CHANGELOG.md](https://github.com/prisant-labs/windows-explorer-quickpane/blob/main/CHANGELOG.md), plus the fixes below.
