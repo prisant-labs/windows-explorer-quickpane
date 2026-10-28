@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.5] - Unreleased
+## [3.10.0.5] - 2026-10-28
 
 ### Changed
 - On Windows 11 the pane and Settings draw their icons with Segoe Fluent Icons, the shell's current icon set. Windows 10 keeps Segoe MDL2 Assets ([#24](https://github.com/prisant-labs/windows-explorer-quickpane/issues/24)).
