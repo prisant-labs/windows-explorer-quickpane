@@ -20,6 +20,10 @@ namespace QuickPane.Services
         public bool IsDark { get; private set; }
         public Color Accent { get; private set; } = Color.FromArgb(0xFF, 0x00, 0x78, 0xD4);
 
+        /// <summary>A Windows contrast theme is on. Every brush then comes from the system colours the
+        /// person chose, not from the light or dark dictionary (#30).</summary>
+        public bool IsHighContrast { get; private set; }
+
         private const string PersonalizeKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize";
         // The accent is not under Personalize, which holds only the mode and transparency switches.
         // Reading it there always missed, so the pane kept its default blue (#20). DWM holds the
@@ -54,13 +58,29 @@ namespace QuickPane.Services
                 return;
             }
 
-            // Override accent brushes from the live system accent so it always matches Windows.
-            var accentBrush = new SolidColorBrush(Accent); accentBrush.Freeze();
-            var accentSoft = new SolidColorBrush(WithAlpha(Accent, 0x33)); accentSoft.Freeze();
-            var accentHover = new SolidColorBrush(WithAlpha(Accent, 0x26)); accentHover.Freeze();
-            dict["AccentBrush"] = accentBrush;
-            dict["ItemActiveBackground"] = accentSoft;
-            dict["ItemHoverBackground"] = accentHover;
+            if (IsHighContrast)
+            {
+                // The light or dark dictionary still supplies the control styles it merges; only its
+                // brushes give way to the contrast colours.
+                var palette = HighContrastPalette(SysColor(System.Drawing.SystemColors.Window),
+                    SysColor(System.Drawing.SystemColors.WindowText), SysColor(System.Drawing.SystemColors.Highlight),
+                    SysColor(System.Drawing.SystemColors.HighlightText), SysColor(System.Drawing.SystemColors.GrayText));
+                foreach (var kv in palette)
+                {
+                    var b = new SolidColorBrush(kv.Value); b.Freeze();
+                    dict[kv.Key] = b;
+                }
+            }
+            else
+            {
+                // Override accent brushes from the live system accent so it always matches Windows.
+                var accentBrush = new SolidColorBrush(Accent); accentBrush.Freeze();
+                var accentSoft = new SolidColorBrush(WithAlpha(Accent, 0x33)); accentSoft.Freeze();
+                var accentHover = new SolidColorBrush(WithAlpha(Accent, 0x26)); accentHover.Freeze();
+                dict["AccentBrush"] = accentBrush;
+                dict["ItemActiveBackground"] = accentSoft;
+                dict["ItemHoverBackground"] = accentHover;
+            }
 
             var merged = app.Resources.MergedDictionaries;
             if (_current != null) merged.Remove(_current);
@@ -116,6 +136,49 @@ namespace QuickPane.Services
             var accent = ParseAccent(ReadValue(DwmKey, "AccentColor"))
                 ?? ParseAccent(ReadValue(ExplorerAccentKey, "AccentColorMenu"));
             if (accent.HasValue) Accent = accent.Value;
+
+            // Asked of Windows each time rather than through WPF's SystemParameters and SystemColors,
+            // which cache and may not have refreshed yet when this runs after a contrast switch.
+            IsHighContrast = System.Windows.Forms.SystemInformation.HighContrast;
+            // A contrast theme sets its own light or dark background; the title bar and the windows
+            // that pick a dark or light fill follow that instead of the app mode switch.
+            if (IsHighContrast) IsDark = IsDarkColor(SysColor(System.Drawing.SystemColors.Window));
+        }
+
+        /// <summary>Every theme brush in a contrast theme, from the system colours. Contrast themes have
+        /// no secondary text colour (GrayText means disabled), so secondary text, rules and chevrons all
+        /// take WindowText. Hover and selection tint the background with Highlight rather than fill it,
+        /// so the WindowText on top stays readable; a full Highlight fill carries HighlightText.</summary>
+        internal static System.Collections.Generic.Dictionary<string, Color> HighContrastPalette(
+            Color window, Color windowText, Color highlight, Color highlightText, Color grayText)
+        {
+            return new System.Collections.Generic.Dictionary<string, Color>
+            {
+                { "SidebarBackground", window },
+                { "TextPrimary", windowText },
+                { "TextSecondary", windowText },
+                { "SeparatorColor", windowText },
+                { "ChevronColor", windowText },
+                { "DriveBarTrack", grayText },
+                { "BrokenLinkColor", grayText },
+                { "FieldBackground", window },
+                { "FieldBorder", windowText },
+                { "BadgeBackground", WithAlpha(highlight, 0x66) },
+                { "AccentBrush", highlight },
+                { "ItemHoverBackground", WithAlpha(highlight, 0x40) },
+                { "ItemActiveBackground", WithAlpha(highlight, 0x66) },
+                { "TextOnAccent", highlightText },
+            };
+        }
+
+        internal static bool IsDarkColor(Color c)
+        {
+            return (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) < 128;
+        }
+
+        private static Color SysColor(System.Drawing.Color c)
+        {
+            return Color.FromRgb(c.R, c.G, c.B);
         }
 
         private static object ReadValue(string keyPath, string name)
@@ -142,9 +205,11 @@ namespace QuickPane.Services
 
         private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
         {
+            // Accessibility is the category a contrast theme switch arrives as.
             if (e.Category != UserPreferenceCategory.General &&
                 e.Category != UserPreferenceCategory.Color &&
-                e.Category != UserPreferenceCategory.VisualStyle)
+                e.Category != UserPreferenceCategory.VisualStyle &&
+                e.Category != UserPreferenceCategory.Accessibility)
                 return;
 
             var app = Application.Current;
