@@ -6,7 +6,7 @@ using Microsoft.Win32;
 namespace QuickPane.Services
 {
     /// <summary>
-    /// Owns the active theme. Reads AppsUseLightTheme and AccentColor from the registry, loads the
+    /// Owns the active theme. Reads AppsUseLightTheme and the accent color from the registry, loads the
     /// matching ResourceDictionary, and overrides the accent brushes from the live system accent.
     /// SystemEvents.UserPreferenceChanged fires when the user flips dark/light or changes accent, so
     /// the sidebar restyles with no restart.
@@ -19,6 +19,11 @@ namespace QuickPane.Services
         public Color Accent { get; private set; } = Color.FromArgb(0xFF, 0x00, 0x78, 0xD4);
 
         private const string PersonalizeKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize";
+        // The accent is not under Personalize, which holds only the mode and transparency switches.
+        // Reading it there always missed, so the pane kept its default blue (#20). DWM holds the
+        // accent itself; Explorer\Accent keeps a copy for the Start menu.
+        private const string DwmKey = @"SOFTWARE\Microsoft\Windows\DWM";
+        private const string ExplorerAccentKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Accent";
         private ResourceDictionary _current;
 
         public void Start()
@@ -73,18 +78,8 @@ namespace QuickPane.Services
             {
                 using (var key = Registry.CurrentUser.OpenSubKey(PersonalizeKey))
                 {
-                    if (key != null)
-                    {
-                        var light = key.GetValue("AppsUseLightTheme");
-                        IsDark = light is int && (int)light == 0;
-
-                        var accent = key.GetValue("AccentColor");
-                        if (accent is int) Accent = AbgrToColor(unchecked((uint)(int)accent));
-                    }
-                    else
-                    {
-                        IsDark = false;
-                    }
+                    var light = key?.GetValue("AppsUseLightTheme");
+                    IsDark = light is int && (int)light == 0;
                 }
             }
             catch (Exception ex)
@@ -92,6 +87,32 @@ namespace QuickPane.Services
                 Log.Error("theme registry read failed", ex);
                 IsDark = false;
             }
+
+            var accent = ParseAccent(ReadValue(DwmKey, "AccentColor"))
+                ?? ParseAccent(ReadValue(ExplorerAccentKey, "AccentColorMenu"));
+            if (accent.HasValue) Accent = accent.Value;
+        }
+
+        private static object ReadValue(string keyPath, string name)
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(keyPath))
+                    return key?.GetValue(name);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("theme registry read failed: " + name, ex);
+                return null;
+            }
+        }
+
+        /// <summary>The accent from a registry value, or null when the value is missing or is not a
+        /// DWORD. The registry hands a DWORD back as a signed int.</summary>
+        internal static Color? ParseAccent(object value)
+        {
+            if (!(value is int)) return null;
+            return AbgrToColor(unchecked((uint)(int)value));
         }
 
         private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
@@ -111,7 +132,7 @@ namespace QuickPane.Services
         }
 
         // Registry AccentColor is 0xAABBGGRR; WPF wants ARGB.
-        private static Color AbgrToColor(uint v)
+        internal static Color AbgrToColor(uint v)
         {
             byte a = (byte)((v >> 24) & 0xFF);
             byte b = (byte)((v >> 16) & 0xFF);
