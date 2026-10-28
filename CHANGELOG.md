@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.3] - Unreleased
+## [3.10.0.3] - 2026-10-27
 
 ### Added
 - Each release includes an installer, `QuickPane-<version>-x64-setup.exe`, built by the release workflow and covered by its checksums and attestation. Run over an existing QuickPane, including one from the original project's installer, it upgrades that install in place, so Add/Remove Programs keeps one entry and shows the new version.
