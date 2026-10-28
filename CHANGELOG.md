@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.4] - Unreleased
+## [3.10.0.4] - 2026-10-27
 
 ### Changed
 - Add/Remove Programs names the app "QuickPane 3.10.0.4" instead of "QuickPane version 3.10.0.4" ([#18](https://github.com/prisant-labs/windows-explorer-quickpane/issues/18)).
