@@ -20,6 +20,7 @@
 > - **Modern folder picker:** choosing a folder opens the Explorer-style picker instead of the old "Browse For Folder" tree. [3.10.0.2](docs/releases/3.10.0.2.md) ([lso2/QuickPane#2](https://github.com/lso2/QuickPane/issues/2))
 > - **Update notice follows this fork:** the Settings footer checks this fork's releases and shows the full four-part version. [3.10.0.2](docs/releases/3.10.0.2.md) ([#2](https://github.com/prisant-labs/windows-explorer-quickpane/pull/2))
 > - **Tested, verifiable builds:** 61 unit tests and a build on every pull request, and releases built from the tagged commit with checksums and a provenance attestation. [3.10.0.2](docs/releases/3.10.0.2.md)
+> - **Installer:** each release includes a per-user installer that upgrades an existing QuickPane in place, so Add/Remove Programs keeps one entry with the right version. [3.10.0.3](https://github.com/prisant-labs/windows-explorer-quickpane/releases/tag/v3.10.0.3) ([#15](https://github.com/prisant-labs/windows-explorer-quickpane/issues/15))
 
 A folder sidebar for Windows File Explorer. QuickPane embeds a pinned-folders pane inside every Explorer window, so your groups, recent locations, drives, network shares, and WSL distros travel with the window you are already using. Pin it inside the window, float it beside the window, or run it as a slim screen-edge dock. Everything runs locally as a single tray app, no code is ever injected into Explorer, and all data stays in plain files under your user profile.
 
