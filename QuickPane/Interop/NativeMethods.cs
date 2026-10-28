@@ -119,6 +119,14 @@ namespace QuickPane.Interop
 
         public const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
 
+        // A dark title bar for a window with a standard frame. Windows 10 builds before 20H1 used 19
+        // for the same switch.
+        [DllImport("dwmapi.dll")]
+        public static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+        public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        public const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+
         public static string ClassOf(IntPtr hWnd)
         {
             var sb = new StringBuilder(256);
