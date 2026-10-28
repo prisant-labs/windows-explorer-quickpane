@@ -2,6 +2,9 @@
 
 ## [3.10.0.5] - Unreleased
 
+### Changed
+- The settings gear stays at the bottom of the pane when the pane is collapsed to its narrow strip, so Settings opens in one click without expanding the pane first ([#22](https://github.com/prisant-labs/windows-explorer-quickpane/issues/22)).
+
 ### Fixed
 - The pane always used the default blue instead of the Windows accent color, because it read the accent from a registry key that does not hold it. The active tab, the drag drop line, and the accent-colored Settings controls now follow the accent chosen in Windows, including changes made while QuickPane runs ([#20](https://github.com/prisant-labs/windows-explorer-quickpane/issues/20)).
 

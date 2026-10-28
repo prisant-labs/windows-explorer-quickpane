@@ -531,7 +531,8 @@ namespace QuickPane.UI
             if (t != null) t();
         }
 
-        /// <summary>Collapse to just the title strip (only the expand chevron stays), or restore.</summary>
+        /// <summary>Collapse to just the title strip (the expand chevron and the settings gear stay), or
+        /// restore.</summary>
         public void SetCollapsed(bool collapsed)
         {
             _paneCollapsed = collapsed;
@@ -539,7 +540,13 @@ namespace QuickPane.UI
             var v = collapsed ? Visibility.Collapsed : Visibility.Visible;
             if (TitleContent != null) TitleContent.Visibility = v;
             if (Scroller != null) Scroller.Visibility = v;
-            if (GearButton != null) GearButton.Visibility = v;
+            if (GearButton != null)
+            {
+                // The expanded gear keeps 22 px clear of the resize grip, which does not fit the 36 px
+                // strip, so the collapsed gear centres in the strip instead (#22).
+                GearButton.HorizontalAlignment = collapsed ? HorizontalAlignment.Center : HorizontalAlignment.Right;
+                GearButton.Margin = collapsed ? new Thickness(0, 0, 0, 8) : new Thickness(0, 0, 22, 8);
+            }
             if (TitleToggleGlyph != null) TitleToggleGlyph.Text = collapsed ? "" : ""; // expand / collapse
             if (TitleToggleGlyph != null) TitleToggleGlyph.Text = collapsed ? "" : ""; // ChevronRight / ChevronLeft
             if (TitleToggleButton != null) TitleToggleButton.ToolTip = collapsed ? "Expand" : "Collapse";
