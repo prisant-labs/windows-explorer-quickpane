@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.6] - Unreleased
+## [3.10.0.6] - 2026-10-28
 
 ### Changed
 - The settings gear now sits at the bottom left of the pane, under the QuickPane icon, instead of the bottom right. It stays in the same place when the pane collapses ([#33](https://github.com/prisant-labs/windows-explorer-quickpane/issues/33)).
