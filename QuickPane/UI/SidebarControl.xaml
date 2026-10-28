@@ -25,7 +25,7 @@
                         </StackPanel>
                         <Button Grid.Column="1" x:Name="TitleToggleButton" Width="22" Height="22"
                                 Background="Transparent" BorderThickness="0" Cursor="Hand" Opacity="0.6"
-                                ToolTip="Collapse" Click="OnTitleToggle">
+                                ToolTip="Collapse" AutomationProperties.Name="Collapse pane" Click="OnTitleToggle">
                             <TextBlock x:Name="TitleToggleGlyph" Text="&#xE76B;" FontFamily="{DynamicResource IconFont}"
                                        FontSize="11" Foreground="{DynamicResource TextSecondary}" />
                         </Button>
@@ -48,7 +48,7 @@
                 <Button Grid.Row="1" x:Name="GearButton" Width="28" Height="28" Opacity="0.4"
                         HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,8"
                         Background="Transparent" BorderThickness="0" Cursor="Hand"
-                        ToolTip="Settings" Click="OnGearClick">
+                        ToolTip="Settings" AutomationProperties.Name="Settings" Click="OnGearClick">
                     <TextBlock Text="&#xE713;" FontFamily="{DynamicResource IconFont}" FontSize="15"
                                Foreground="{DynamicResource TextSecondary}" />
                     <Button.Style>
