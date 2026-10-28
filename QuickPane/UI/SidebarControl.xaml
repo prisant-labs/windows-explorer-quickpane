@@ -44,37 +44,6 @@
                     <StackPanel x:Name="SectionsPanel" />
                 </ScrollViewer>
 
-                <!-- Buy me a coffee, bottom-left -->
-                <Button Grid.Row="1" x:Name="SupportButton" Height="28" Opacity="0.6"
-                        HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="8,0,0,8"
-                        Background="Transparent" BorderThickness="0" Cursor="Hand"
-                        ToolTip="Buy me a coffee" Click="OnSupportClick">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="&#x2764;" FontSize="12" Foreground="{DynamicResource AccentBrush}"
-                                   VerticalAlignment="Center" Margin="0,0,5,0" />
-                        <TextBlock Text="Buy me a coffee" FontSize="11"
-                                   Foreground="{DynamicResource TextSecondary}" VerticalAlignment="Center" />
-                    </StackPanel>
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="4,2">
-                                            <ContentPresenter VerticalAlignment="Center" />
-                                        </Border>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                            <Style.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Opacity" Value="1" />
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Button.Style>
-                </Button>
-
                 <!-- Settings gear, bottom-right -->
                 <Button Grid.Row="1" x:Name="GearButton" Width="28" Height="28" Opacity="0.4"
                         HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,8"

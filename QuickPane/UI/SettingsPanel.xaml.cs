@@ -1658,15 +1658,13 @@ namespace QuickPane.UI
         // ---- footer -------------------------------------------------
 
         /// <summary>
-        /// The bar under every tab: what this is and which build it is on the left, support on the
-        /// right. The version is read from the assembly, so it can never disagree with the binary, and
-        /// GitHub is asked in the background whether a newer release exists.
+        /// The bar under every tab: what this is and which build it is. The version is read from the
+        /// assembly, so it can never disagree with the binary, and GitHub is asked in the background
+        /// whether a newer release exists.
         /// </summary>
         private FrameworkElement BuildFooter()
         {
             var bar = new Grid { Margin = new Thickness(10, 0, 10, 10) };
-            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var rule = new Border
             {
@@ -1675,7 +1673,6 @@ namespace QuickPane.UI
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 0, 0, 10)
             };
-            Grid.SetColumnSpan(rule, 2);
             bar.Children.Add(rule);
 
             var left = new StackPanel
@@ -1726,15 +1723,7 @@ namespace QuickPane.UI
             };
             left.Children.Add(download);
 
-            Grid.SetColumn(left, 0);
             bar.Children.Add(left);
-
-            var support = BuildSupportButton();
-            support.Margin = new Thickness(12, 12, 0, 0);
-            support.HorizontalAlignment = HorizontalAlignment.Right;
-            support.VerticalAlignment = VerticalAlignment.Center;
-            Grid.SetColumn(support, 1);
-            bar.Children.Add(support);
 
             UpdateService.CheckAsync(r =>
             {
@@ -1751,37 +1740,6 @@ namespace QuickPane.UI
             });
 
             return bar;
-        }
-
-        private Button BuildSupportButton()
-        {
-            var btn = new Button
-            {
-                Cursor = Cursors.Hand,
-                Background = Brushes.Transparent,
-                BorderBrush = UiHelpers.AppBrush("SeparatorColor"),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(12, 6, 12, 6),
-                Margin = new Thickness(0, 18, 0, 4)
-            };
-            var sp = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-            sp.Children.Add(new TextBlock
-            {
-                Text = "❤",
-                Foreground = UiHelpers.AppBrush("AccentBrush"),
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 6, 0)
-            });
-            sp.Children.Add(new TextBlock
-            {
-                Text = "Buy me a coffee",
-                FontSize = 13,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = UiHelpers.AppBrush("TextPrimary")
-            });
-            btn.Content = sp;
-            btn.Click += (a, b) => SidebarControl.OpenSupportLink();
-            return btn;
         }
 
         // ---- small builders ----
