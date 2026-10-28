@@ -288,6 +288,7 @@ namespace QuickPane.UI
                 VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "Add tab"
             };
+            UiHelpers.Named(addTab, "Add tab");
             addTab.Click += (s, e) =>
             {
                 var v = TextPrompt.Ask("New tab name", "");
@@ -912,6 +913,7 @@ namespace QuickPane.UI
                 VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "Add group below"
             };
+            UiHelpers.Named(plus, "Add group below");
             plus.Click += (s, e) => { var v = TextPrompt.Ask("New group name", ""); if (!string.IsNullOrWhiteSpace(v)) App.Groups.CreateGroupAfter(group, v); };
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetColumn(plus, header.ColumnDefinitions.Count - 1);
@@ -934,7 +936,7 @@ namespace QuickPane.UI
                 FontSize = 12
             };
             btn.Click += (s, e) => { var v = TextPrompt.Ask("New group name", ""); if (!string.IsNullOrWhiteSpace(v)) App.Groups.CreateGroup(v); };
-            return btn;
+            return UiHelpers.Named(btn, "Add group");
         }
 
         // ---- drag ghost / drop line ----

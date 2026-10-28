@@ -65,6 +65,7 @@ namespace QuickPane.UI
                 VerticalAlignment = VerticalAlignment.Center,
                 Text = PaneFilter.Text
             };
+            UiHelpers.Named(_box, "Filter folders");
             _box.TextChanged += (s, e) =>
             {
                 PaneFilter.Text = _box.Text;

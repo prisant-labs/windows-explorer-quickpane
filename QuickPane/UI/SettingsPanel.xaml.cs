@@ -94,6 +94,7 @@ namespace QuickPane.UI
                 Cursor = Cursors.Hand,
                 Padding = new Thickness(6)
             };
+            UiHelpers.Named(close, "Close settings");
             close.Click += (a, b) => Raise();
             Grid.SetColumn(close, 1);
             title.Children.Add(close);
@@ -300,6 +301,7 @@ namespace QuickPane.UI
                 Width = 160,
                 HorizontalAlignment = HorizontalAlignment.Left
             };
+            UiHelpers.Named(box, "Keyboard navigation shortcut");
             box.LostFocus += (a, b) =>
             {
                 uint m, v;
@@ -414,7 +416,9 @@ namespace QuickPane.UI
             var sp = new StackPanel();
             sp.Children.Add(SubHeading("Desktop dock"));
             sp.Children.Add(ModeCheck("Show desktop dock (screen edge)", s.DesktopDock, on => { s.DesktopDock = on; _settings.Save(); }));
-            sp.Children.Add(ModeCheck("Auto-hide (slide out on hover)", s.DesktopDockAutoHide, on => { s.DesktopDockAutoHide = on; _settings.Save(); }));
+            // Both auto-hide boxes read the same on screen, where the heading above tells them apart;
+            // a screen reader announces only the name, so each name says which one it is.
+            sp.Children.Add(UiHelpers.Named(ModeCheck("Auto-hide (slide out on hover)", s.DesktopDockAutoHide, on => { s.DesktopDockAutoHide = on; _settings.Save(); }), "Auto-hide the desktop dock"));
             sp.Children.Add(ModeCheck("Show on all virtual desktops", s.DesktopDockAllDesktops, on => { s.DesktopDockAllDesktops = on; _settings.Save(); }));
             return sp;
         }
@@ -468,7 +472,7 @@ namespace QuickPane.UI
             var sp = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
             sp.Children.Add(SubHeading("Profile tabs"));
             sp.Children.Add(ModeCheck("Show profiles tab row", s.ShowProfileTabs, on => { s.ShowProfileTabs = on; _settings.Save(); }));
-            sp.Children.Add(ModeCheck("Auto-hide (slide out on hover)", s.ProfileTabsAutoHide, on => { s.ProfileTabsAutoHide = on; _settings.Save(); }));
+            sp.Children.Add(UiHelpers.Named(ModeCheck("Auto-hide (slide out on hover)", s.ProfileTabsAutoHide, on => { s.ProfileTabsAutoHide = on; _settings.Save(); }), "Auto-hide the profiles tab row"));
             sp.Children.Add(new TextBlock
             {
                 Text = "The row appears once there are two or more profiles.",
@@ -705,9 +709,11 @@ namespace QuickPane.UI
             header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             var nameBox = new TextBox { Text = p.Name, FontSize = 13, FontWeight = FontWeights.SemiBold, BorderThickness = new Thickness(0), Background = Brushes.Transparent };
             nameBox.LostKeyboardFocus += (a, b) => { p.Name = nameBox.Text; _settings.Save(); };
+            UiHelpers.Named(nameBox, "Connection name");
             Grid.SetColumn(nameBox, 0); header.Children.Add(nameBox);
             var del = TextButton("✕");
             del.ToolTip = "Remove connection";
+            UiHelpers.Named(del, "Remove connection " + p.Name);
             del.Click += (a, b) =>
             {
                 if (connected) SshfsService.Unmount(p);
@@ -719,11 +725,11 @@ namespace QuickPane.UI
             sp.Children.Add(header);
 
             sp.Children.Add(ProfileFieldLabel("Hostname"));
-            sp.Children.Add(SshTextRow(p.Hostname, v => { p.Hostname = v; _settings.Save(); }));
+            sp.Children.Add(SshTextRow("Hostname", p.Hostname, v => { p.Hostname = v; _settings.Save(); }));
             sp.Children.Add(ProfileFieldLabel("Port"));
-            sp.Children.Add(BuildStepper(p.Port, 1, 65535, 1, v => { p.Port = v; _settings.Save(); }));
+            sp.Children.Add(BuildStepper("port", p.Port, 1, 65535, 1, v => { p.Port = v; _settings.Save(); }));
             sp.Children.Add(ProfileFieldLabel("Auto-login username"));
-            sp.Children.Add(SshTextRow(p.Username, v => { p.Username = v; _settings.Save(); }));
+            sp.Children.Add(SshTextRow("Auto-login username", p.Username, v => { p.Username = v; _settings.Save(); }));
 
             sp.Children.Add(ProfileFieldLabel("Authentication"));
             var keyRadio = ModeRadioGroup("qpAuth" + index, "Private key", p.AuthMethod == "key", () => { p.AuthMethod = "key"; _settings.Save(); BuildUI(); });
@@ -739,18 +745,18 @@ namespace QuickPane.UI
             else
             {
                 sp.Children.Add(ProfileFieldLabel("Auto-login password"));
-                var pwBox = new PasswordBox { FontSize = 11 };
+                var pwBox = UiHelpers.Named(new PasswordBox { FontSize = 11 }, "Auto-login password");
                 pwBox.Password = p.Password;
                 pwBox.LostKeyboardFocus += (a, b) => { p.Password = pwBox.Password; _settings.Save(); };
                 sp.Children.Add(pwBox);
             }
 
             sp.Children.Add(ProfileFieldLabel("Remote path"));
-            sp.Children.Add(SshTextRow(p.RemotePath, v => { p.RemotePath = v; _settings.Save(); }));
+            sp.Children.Add(SshTextRow("Remote path", p.RemotePath, v => { p.RemotePath = v; _settings.Save(); }));
             sp.Children.Add(ProfileFieldLabel("Drive letter"));
-            sp.Children.Add(SshTextRow(p.DriveLetter, v => { p.DriveLetter = v; _settings.Save(); }));
+            sp.Children.Add(SshTextRow("Drive letter", p.DriveLetter, v => { p.DriveLetter = v; _settings.Save(); }));
             sp.Children.Add(ProfileFieldLabel("Keepalive: seconds between packets"));
-            sp.Children.Add(BuildStepper(p.KeepAliveInterval, 0, 300, 5, v => { p.KeepAliveInterval = v; _settings.Save(); }));
+            sp.Children.Add(BuildStepper("keepalive interval", p.KeepAliveInterval, 0, 300, 5, v => { p.KeepAliveInterval = v; _settings.Save(); }));
             sp.Children.Add(ModeCheck("Reconnect automatically", p.Reconnect, on => { p.Reconnect = on; _settings.Save(); }));
 
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
@@ -789,12 +795,13 @@ namespace QuickPane.UI
             var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var box = new TextBox { Text = p.PrivateKeyPath, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center };
+            var box = UiHelpers.Named(new TextBox { Text = p.PrivateKeyPath, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center }, "Private key file");
             box.LostKeyboardFocus += (a, b) => { p.PrivateKeyPath = box.Text; _settings.Save(); };
             Grid.SetColumn(box, 0); row.Children.Add(box);
             var browse = TextButton("...");
             browse.Margin = new Thickness(4, 0, 0, 0);
             browse.ToolTip = "PuTTY keys must be converted first: PuTTYgen -> Conversions -> Export OpenSSH key";
+            UiHelpers.Named(browse, "Browse for private key file");
             browse.Click += (a, b) =>
             {
                 var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Private key (*.*)|*.*" };
@@ -804,9 +811,9 @@ namespace QuickPane.UI
             return row;
         }
 
-        private FrameworkElement SshTextRow(string value, Action<string> onCommit)
+        private FrameworkElement SshTextRow(string label, string value, Action<string> onCommit)
         {
-            var box = new TextBox { Text = value, FontSize = 11, Margin = new Thickness(0, 0, 0, 4) };
+            var box = UiHelpers.Named(new TextBox { Text = value, FontSize = 11, Margin = new Thickness(0, 0, 0, 4) }, label);
             box.LostKeyboardFocus += (a, b) => onCommit(box.Text);
             box.KeyDown += (a, b) => { if (b.Key == Key.Enter) onCommit(box.Text); };
             return box;
@@ -840,7 +847,7 @@ namespace QuickPane.UI
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4)
             };
-            var add = TextButton("+  Add connection");
+            var add = UiHelpers.Named(TextButton("+  Add connection"), "Add connection");
             add.VerticalAlignment = VerticalAlignment.Center;
             add.Click += (a, b) =>
             {
@@ -977,6 +984,7 @@ namespace QuickPane.UI
             {
                 var rem = TextButton("✕");
                 rem.ToolTip = "Remove profile";
+                UiHelpers.Named(rem, "Remove profile " + p.Name);
                 rem.Click += (a, b) =>
                 {
                     var r = WinForms.MessageBox.Show("Remove profile \"" + p.Name + "\"? Its groups folder is left on disk.",
@@ -1008,7 +1016,7 @@ namespace QuickPane.UI
             groupRows.Drop += (a, b) => OnGroupRowsDrop(b, groupRows, root, index);
             sp.Children.Add(groupRows);
 
-            var add = TextButton("+  Add group");
+            var add = UiHelpers.Named(TextButton("+  Add group"), "Add group to " + p.Name);
             add.HorizontalContentAlignment = HorizontalAlignment.Left;
             add.Margin = new Thickness(0, 6, 0, 8);
             add.Click += (a, b) =>
@@ -1024,9 +1032,9 @@ namespace QuickPane.UI
             sp.Children.Add(ProfileFieldLabel("Groups folder"));
             sp.Children.Add(BuildProfileFolderRow(index, p));
             sp.Children.Add(ProfileFieldLabel("Recents count"));
-            sp.Children.Add(BuildStepper(p.RecentsMaxCount, 5, 50, 1, v => SetProfileRecents(index, v)));
+            sp.Children.Add(BuildStepper("recents count", p.RecentsMaxCount, 5, 50, 1, v => SetProfileRecents(index, v)));
             sp.Children.Add(ProfileFieldLabel("Sidebar width (px)"));
-            sp.Children.Add(BuildStepper(p.SidebarWidthPx, 160, 400, 10, v => SetProfileWidth(index, v)));
+            sp.Children.Add(BuildStepper("sidebar width", p.SidebarWidthPx, 160, 400, 10, v => SetProfileWidth(index, v)));
 
             border.Child = sp;
             return border;
@@ -1059,6 +1067,7 @@ namespace QuickPane.UI
 
             var del = TextButton("✕");
             del.ToolTip = "Delete group";
+            UiHelpers.Named(del, "Delete group " + name);
             del.Click += (a, b) =>
             {
                 var r = WinForms.MessageBox.Show("Delete group \"" + name + "\"?",
@@ -1178,7 +1187,7 @@ namespace QuickPane.UI
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(4)
             };
-            var add = TextButton("+  Add profile");
+            var add = UiHelpers.Named(TextButton("+  Add profile"), "Add profile");
             add.VerticalAlignment = VerticalAlignment.Center;
             add.Click += (a, b) =>
             {
@@ -1195,11 +1204,11 @@ namespace QuickPane.UI
             var row = new Grid { Margin = new Thickness(0, 0, 0, 4) };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var box = new TextBox { Text = p.GroupsPath, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center };
+            var box = UiHelpers.Named(new TextBox { Text = p.GroupsPath, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center }, "Groups folder");
             box.LostKeyboardFocus += (a, b) => SetProfileFolder(index, box.Text);
             box.KeyDown += (a, b) => { if (b.Key == Key.Enter) SetProfileFolder(index, box.Text); };
             Grid.SetColumn(box, 0); row.Children.Add(box);
-            var browse = TextButton("...");
+            var browse = UiHelpers.Named(TextButton("..."), "Browse for groups folder");
             browse.Margin = new Thickness(4, 0, 0, 0);
             browse.Click += (a, b) =>
             {
@@ -1271,6 +1280,7 @@ namespace QuickPane.UI
             grid.Children.Add(grip);
 
             var cb = new CheckBox { IsChecked = sec.Visible, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+            UiHelpers.Named(cb, "Show " + Friendly(sec.Type) + " section");
             cb.Checked += (a, b) => { sec.Visible = true; _settings.Save(); };
             cb.Unchecked += (a, b) => { sec.Visible = false; _settings.Save(); };
             Grid.SetColumn(cb, 1);
@@ -1478,7 +1488,7 @@ namespace QuickPane.UI
             _settings.Save();
         }
 
-        private FrameworkElement BuildStepper(int value, int min, int max, int step, Action<int> onChange)
+        private FrameworkElement BuildStepper(string label, int value, int min, int max, int step, Action<int> onChange)
         {
             int current = Math.Max(min, Math.Min(max, value));
             var grid = new Grid { Margin = new Thickness(0, 0, 0, 6), HorizontalAlignment = HorizontalAlignment.Left };
@@ -1496,8 +1506,9 @@ namespace QuickPane.UI
                 Foreground = UiHelpers.AppBrush("TextPrimary")
             };
 
-            var minus = TextButton("−"); // minus sign
-            var plus = TextButton("+");
+            var minus = UiHelpers.Named(TextButton("−"), "Decrease " + label); // minus sign
+            var plus = UiHelpers.Named(TextButton("+"), "Increase " + label);
+            UiHelpers.Named(valueText, label);
 
             minus.Click += (a, b) =>
             {
@@ -1599,7 +1610,7 @@ namespace QuickPane.UI
             Grid.SetColumn(text, 1);
             grid.Children.Add(text);
 
-            var btn = TextButton("Download");
+            var btn = UiHelpers.Named(TextButton("Download"), "Download " + name);
             btn.Margin = new Thickness(10, 0, 0, 0);
             btn.VerticalAlignment = VerticalAlignment.Center;
             btn.Click += (a, b) => OpenUrl(url);
@@ -1632,6 +1643,7 @@ namespace QuickPane.UI
                 VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
             };
+            UiHelpers.Named(box, "Install commands");
             Grid.SetColumn(box, 0);
             grid.Children.Add(box);
 

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
@@ -549,7 +550,11 @@ namespace QuickPane.UI
             }
             if (TitleToggleGlyph != null) TitleToggleGlyph.Text = collapsed ? "" : ""; // expand / collapse
             if (TitleToggleGlyph != null) TitleToggleGlyph.Text = collapsed ? "" : ""; // ChevronRight / ChevronLeft
-            if (TitleToggleButton != null) TitleToggleButton.ToolTip = collapsed ? "Expand" : "Collapse";
+            if (TitleToggleButton != null)
+            {
+                TitleToggleButton.ToolTip = collapsed ? "Expand" : "Collapse";
+                AutomationProperties.SetName(TitleToggleButton, collapsed ? "Expand pane" : "Collapse pane");
+            }
         }
 
         private int _resizeStartPx;
@@ -612,6 +617,15 @@ namespace QuickPane.UI
         {
             var b = Application.Current != null ? Application.Current.TryFindResource(key) as Brush : null;
             return b ?? Brushes.Gray;
+        }
+
+        /// <summary>Give a control the name screen readers announce and UI Automation finds it by. A
+        /// control whose visible content is a glyph or a symbol, or a text box with its label beside it
+        /// rather than inside it, otherwise has no name at all (#28).</summary>
+        public static T Named<T>(T element, string name) where T : DependencyObject
+        {
+            AutomationProperties.SetName(element, name);
+            return element;
         }
 
         private static readonly FontFamily FallbackIconFont = new FontFamily("Segoe MDL2 Assets");
