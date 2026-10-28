@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -520,12 +519,7 @@ namespace QuickPane.UI
             return true;
         }
 
-        // ---- support + resize ----
-
-        private void OnSupportClick(object sender, RoutedEventArgs e)
-        {
-            OpenSupportLink();
-        }
+        // ---- title toggle + resize ----
 
         /// <summary>Action for the title-row toggle. The host decides what it does: collapse the pane
         /// for the window modes, or toggle auto-hide for the desktop dock.</summary>
@@ -545,20 +539,10 @@ namespace QuickPane.UI
             var v = collapsed ? Visibility.Collapsed : Visibility.Visible;
             if (TitleContent != null) TitleContent.Visibility = v;
             if (Scroller != null) Scroller.Visibility = v;
-            if (SupportButton != null) SupportButton.Visibility = v;
             if (GearButton != null) GearButton.Visibility = v;
             if (TitleToggleGlyph != null) TitleToggleGlyph.Text = collapsed ? "" : ""; // expand / collapse
             if (TitleToggleGlyph != null) TitleToggleGlyph.Text = collapsed ? "" : ""; // ChevronRight / ChevronLeft
             if (TitleToggleButton != null) TitleToggleButton.ToolTip = collapsed ? "Expand" : "Collapse";
-        }
-
-        internal static void OpenSupportLink()
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo("https://plexpixel.com/donate") { UseShellExecute = true });
-            }
-            catch (Exception ex) { Log.Error("open support link", ex); }
         }
 
         private int _resizeStartPx;

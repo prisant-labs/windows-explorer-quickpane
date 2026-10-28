@@ -2,6 +2,9 @@
 
 ## [3.10.0.4] - Unreleased
 
+### Removed
+- The "Buy me a coffee" button, both at the bottom of the pane and in the Settings footer. It opened the original author's donation page, which does not fund this fork ([#18](https://github.com/prisant-labs/windows-explorer-quickpane/issues/18)).
+
 ## [3.10.0.3] - 2026-10-27
 
 ### Added
