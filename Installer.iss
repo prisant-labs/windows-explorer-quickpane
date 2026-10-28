@@ -31,6 +31,8 @@
 AppId={{A1C3E5F7-2B4D-6E8F-0A1C-3E5F7B9D1A2C}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+; Without this, Inno Setup names the Add/Remove Programs entry "QuickPane version <version>".
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
