@@ -242,7 +242,7 @@ namespace QuickPane.UI
             var glyph = new TextBlock
             {
                 Text = "",
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontFamily = UiHelpers.IconFont(),
                 FontSize = 10,
                 Foreground = UiHelpers.AppBrush("ChevronColor"),
                 VerticalAlignment = VerticalAlignment.Center,

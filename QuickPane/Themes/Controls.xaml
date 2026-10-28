@@ -5,6 +5,11 @@
          dictionaries, so they reference the active theme's brushes through DynamicResource and
          follow dark/light automatically. -->
 
+    <!-- Icon glyphs. WPF tries each family in turn: Windows 11 has Segoe Fluent Icons, Windows 10
+         only MDL2. Every glyph the app uses (E713, E721, E76B, E76C, E8BB) has the same code point
+         in both, so a new glyph must be checked against both fonts (#24). -->
+    <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
     <!-- Plain buttons. Without this they fall back to the light Windows chrome, which is why hover
          washed out the text. Honors any Background/BorderBrush a button sets, themes the hover. -->
     <Style TargetType="Button">

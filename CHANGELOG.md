@@ -3,6 +3,7 @@
 ## [3.10.0.5] - Unreleased
 
 ### Changed
+- On Windows 11 the pane and Settings draw their icons with Segoe Fluent Icons, the shell's current icon set. Windows 10 keeps Segoe MDL2 Assets ([#24](https://github.com/prisant-labs/windows-explorer-quickpane/issues/24)).
 - The settings gear stays at the bottom of the pane when the pane is collapsed to its narrow strip, so Settings opens in one click without expanding the pane first ([#22](https://github.com/prisant-labs/windows-explorer-quickpane/issues/22)).
 
 ### Fixed

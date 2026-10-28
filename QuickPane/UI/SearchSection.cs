@@ -45,7 +45,7 @@ namespace QuickPane.UI
             var glyph = new TextBlock
             {
                 Text = "",                       // Segoe MDL2 search
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontFamily = UiHelpers.IconFont(),
                 FontSize = 11,
                 Opacity = 0.6,
                 VerticalAlignment = VerticalAlignment.Center,

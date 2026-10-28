@@ -74,7 +74,7 @@ namespace QuickPane.UI
             _chevGlyph = new TextBlock
             {
                 Text = "", // Segoe MDL2 ChevronRight, same glyph and size as the group caret
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontFamily = UiHelpers.IconFont(),
                 FontSize = 10,
                 Foreground = UiHelpers.AppBrush("ChevronColor"),
                 VerticalAlignment = VerticalAlignment.Center,

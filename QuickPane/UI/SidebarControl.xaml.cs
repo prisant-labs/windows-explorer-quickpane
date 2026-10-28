@@ -614,6 +614,16 @@ namespace QuickPane.UI
             return b ?? Brushes.Gray;
         }
 
+        private static readonly FontFamily FallbackIconFont = new FontFamily("Segoe MDL2 Assets");
+
+        /// <summary>The icon font from Themes/Controls.xaml: Segoe Fluent Icons where Windows has it,
+        /// else MDL2. MDL2 is also the answer before a theme dictionary is loaded.</summary>
+        public static FontFamily IconFont()
+        {
+            var f = Application.Current != null ? Application.Current.TryFindResource("IconFont") as FontFamily : null;
+            return f ?? FallbackIconFont;
+        }
+
         /// <summary>
         /// Build a section/group header: a left chevron (revealed on hover) plus an uppercase label.
         /// Single click anywhere on the header toggles expand/collapse. Double click invokes
@@ -629,7 +639,7 @@ namespace QuickPane.UI
             var glyph = new TextBlock
             {
                 Text = "", // Segoe MDL2 ChevronRight, rotates to point down when expanded
-                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontFamily = UiHelpers.IconFont(),
                 FontSize = 10,
                 Opacity = 1,   // always shown, so a section reads as collapsible before it is hovered
                 Foreground = AppBrush("ChevronColor"),
