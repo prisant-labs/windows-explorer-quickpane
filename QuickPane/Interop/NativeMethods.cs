@@ -127,9 +127,15 @@ namespace QuickPane.Interop
         public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
         public const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
 
+        // One buffer per thread, because ClassOf runs on the UI thread for every create and show event on
+        // the desktop, and on the workers and the layout enforcer too. A new 256-character buffer per
+        // call was garbage on the hottest path (prisant-labs/windows-explorer-quickpane#44).
+        [ThreadStatic] private static StringBuilder _classBuffer;
+
         public static string ClassOf(IntPtr hWnd)
         {
-            var sb = new StringBuilder(256);
+            var sb = _classBuffer ?? (_classBuffer = new StringBuilder(256));
+            sb.Length = 0;
             GetClassName(hWnd, sb, sb.Capacity);
             return sb.ToString();
         }

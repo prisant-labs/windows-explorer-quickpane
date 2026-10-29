@@ -273,13 +273,20 @@ namespace QuickPane.Explorer
                 }
             }
 
-            NM.EnumWindows((hwnd, l) =>
+            // Ask Windows for the Explorer windows by class. Enumerating every top-level window and reading
+            // each one's class made hundreds of reads and allocations a second to find a handful
+            // (prisant-labs/windows-explorer-quickpane#44).
+            foreach (var cls in ExplorerClasses)
             {
-                if (NM.IsWindowVisible(hwnd) && IsExplorerFolder(hwnd) && !_windows.ContainsKey(hwnd))
-                    QueueAttach(hwnd);
-                return true;
-            }, IntPtr.Zero);
+                for (var hwnd = NM.FindWindowEx(IntPtr.Zero, IntPtr.Zero, cls, null); hwnd != IntPtr.Zero;
+                     hwnd = NM.FindWindowEx(IntPtr.Zero, hwnd, cls, null))
+                {
+                    if (NM.IsWindowVisible(hwnd) && !_windows.ContainsKey(hwnd)) QueueAttach(hwnd);
+                }
+            }
         }
+
+        private static readonly string[] ExplorerClasses = { "CabinetWClass", "ExploreWClass" };
 
         // ---- device-change sink ---------------------------------------------
 
