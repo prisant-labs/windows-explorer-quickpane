@@ -38,6 +38,7 @@ The tests live in `tests/QuickPane.Tests`, an SDK-style `net48` NUnit project. I
 - Never use `SettingsStore`'s default constructor in a test. It reads and writes the real `%APPDATA%\QuickPane`. Use `new SettingsStore(tempDir)`, and point `groupsPath` inside the temporary directory too.
 - Never call `GroupStore.Recycle` or `DeleteTab` on real folders. Either would put test folders in the developer's Recycle Bin.
 - Never start `QuickPane.exe` from a test, and never show a window or dialog.
+- Keep expected failures out of the log. Before `Log.Init` runs, `Log` writes to `quickpane.log` in the system temp folder, which is outside the test's own directory. `WorkLane` and `WinEventHub` take an `onError` handler for this reason. A test that makes either fail on purpose passes its own handler.
 - Prefer pulling a decision out into a pure `internal static` method and testing that. `DialogPaneWatcher.ResolveMode` is an example.
 
 ## CI
@@ -80,6 +81,12 @@ Windows Sandbox makes a safe test bed for UI checks. It is a disposable desktop 
 | Settings UI | The Settings tab bodies expose no controls to UI Automation, so screen readers and UI-test tools cannot see them. New controls should set `AutomationProperties.Name`. |
 | Versions | `UpdateService.Current` reads the assembly version. `UpdateService.Display` spells any version the way its tag does, with four parts when the fourth is not zero. Use it, never `Version.ToString(3)`, which drops a fork build's fourth part. |
 | Update check | `UpdateService` asks GitHub for this fork's `releases/latest`, which skips drafts and pre-releases. A 404 means no published release yet and reads as "Up to date". |
+| Slow work and threads | In inside mode the UI thread shares Explorer's input queue, so one blocking call on it stalls Explorer too. Disk, network, and cross-process COM work goes to `WorkQueue`, which has two background STA lanes. `WorkQueue.PostNavigation` is only for driving an Explorer window or a file dialog to a folder the user clicked. Everything else uses `WorkQueue.Post`. A click used to wait behind Recent polls, copies, and network probes on a single lane. See #38. |
+| Checks the user waits for | When the UI must know an answer before it can continue, such as a picker's start folder, use `PathStatus.FolderExistsWithin`. It gives up after `InteractiveProbeMs` and reports a timeout separately from "missing". A bare `Directory.Exists` on an unreachable share waits for the network timeout. See #41. |
+| Window event hooks | Create hooks with `WinEventHook`, never with `SetWinEventHook` directly. `WinEventHub` shares one native hook among every `WinEventHook` for the same event range on the same thread, so each event crosses processes once. Handlers run on the UI thread for events from the whole desktop. Reject unrelated events in the first line. See #43. |
+| Recent tracking | `RecentTracker` queries Explorer through COM when a window is activated. Its 2-second poll queries only when the front window, its front tab, or its title changed, or every 30 seconds otherwise. Anything that makes the poll query more often multiplies cross-process traffic. See #39. |
+| Logging | `Log` keeps one handle per log file open through `AppendOnlyFile`, with append-only rights, and checks every 30 seconds that the name still points at the same file, because every QuickPane process rolls the logs when it starts. Write logs only through `Log`. See #46. |
+| Caches | A cache keyed by path should be an `LruCache` with a cap, guarded by the owner's lock. QuickPane runs for days, so an uncapped dictionary only grows. See #47 and #48. |
 
 ## Working with upstream
 
