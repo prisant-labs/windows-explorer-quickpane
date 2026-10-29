@@ -25,6 +25,19 @@ namespace QuickPane.Tests
         }
 
         [Test]
+        public void HasAtMostOneTab_NoSecondTab_StopsAtFirstMatch()
+        {
+            // A single-tab window, or a Windows 10 window, needs only the first matching entry (#40).
+            Assert.That(ExplorerNavigator.HasAtMostOneTab(0), Is.True);
+        }
+
+        [Test]
+        public void HasAtMostOneTab_SecondTabPresent_ReadsTheWholeList()
+        {
+            Assert.That(ExplorerNavigator.HasAtMostOneTab(0x200), Is.False);
+        }
+
+        [Test]
         public void PickActiveTab_SingleWindow_PicksIt()
         {
             Assert.That(ExplorerNavigator.PickActiveTab(new long[] { 0x100 }, 0x100), Is.EqualTo(0));
