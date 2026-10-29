@@ -15,6 +15,7 @@
 - The record of which paths exist, used to dim offline pins, now holds at most 4,096 paths and forgets the ones used longest ago. It used to keep every path ever shown for as long as QuickPane ran ([#48](https://github.com/prisant-labs/windows-explorer-quickpane/issues/48)).
 - The groups folder is rescanned only for changes that can alter the groups: a folder or shortcut added, removed, or renamed, or a shortcut edited in place. Write-time changes on folders and on files such as `desktop.ini` no longer each set off a rescan of every pin ([#49](https://github.com/prisant-labs/windows-explorer-quickpane/issues/49)).
 - The crash guard's heartbeat file is rewritten when QuickPane's recorded activity changes, or once a minute when idle, instead of every 4 seconds all day ([#50](https://github.com/prisant-labs/windows-explorer-quickpane/issues/50)).
+- Each layout pass on an Explorer window walks its tabs once instead of two or three times ([#45](https://github.com/prisant-labs/windows-explorer-quickpane/issues/45)).
 
 ## [3.10.0.7] - 2026-10-29
 
