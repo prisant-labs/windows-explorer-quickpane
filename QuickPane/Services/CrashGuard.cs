@@ -25,6 +25,7 @@ namespace QuickPane.Services
         private const string StateFileName = "session.state";
         private const string RestartFileName = "restarts.state";
         private const int HeartbeatMs = 4000;
+        internal const int IdleHeartbeatMs = 60000;
 
         /// <summary>Name of the mutex the tray instance claims. Held here rather than in App because the
         /// watchdog also tests it to tell a live tray app from its own kind.</summary>
@@ -115,13 +116,40 @@ namespace QuickPane.Services
             _beat.Start();
         }
 
+        // The loop wakes every HeartbeatMs but writes only when the activity breadcrumb changed, or once
+        // a minute otherwise. Writing, deleting, and renaming the state file every 4 seconds all day
+        // was disk traffic an idle tray app should not make, and antivirus software can scan each
+        // write (prisant-labs/windows-explorer-quickpane#50).
         private static void HeartbeatLoop()
         {
+            string lastActivity = null;
+            DateTime lastActivityAt = DateTime.MinValue;
+            int lastBeat = 0;
+            bool beaten = false;
             while (!_stop)
             {
-                try { WriteState(false); } catch { }
+                var activity = Log.LastActivity;
+                var activityAt = Log.LastActivityAt;
+                int now = Environment.TickCount;
+                bool changed = !beaten || activity != lastActivity || activityAt != lastActivityAt;
+                if (ShouldBeat(changed, unchecked(now - lastBeat)))
+                {
+                    try { WriteState(false); } catch { }
+                    lastActivity = activity;
+                    lastActivityAt = activityAt;
+                    lastBeat = now;
+                    beaten = true;
+                }
                 for (int i = 0; i < HeartbeatMs / 250 && !_stop; i++) Thread.Sleep(250);
             }
+        }
+
+        /// <summary>Whether this wake of the heartbeat loop should write the state file. A crash while
+        /// something is happening keeps the 4-second precision; an idle crash is placed within a
+        /// minute, which is enough for the report.</summary>
+        internal static bool ShouldBeat(bool activityChanged, int msSinceLastBeat)
+        {
+            return activityChanged || msSinceLastBeat < 0 || msSinceLastBeat >= IdleHeartbeatMs;
         }
 
         /// <summary>Stamp the heartbeat clean so neither the watchdog nor the next start treats this exit
