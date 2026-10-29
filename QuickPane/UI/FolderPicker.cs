@@ -43,7 +43,7 @@ namespace QuickPane.UI
                 dialog.SetOptions(opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
                 if (!string.IsNullOrEmpty(title)) dialog.SetTitle(title);
 
-                if (!string.IsNullOrEmpty(startFolder) && Directory.Exists(startFolder))
+                if (StartFolderAnswers(startFolder))
                 {
                     var iid = typeof(IShellItem).GUID;
                     IShellItem folder;
@@ -74,12 +74,21 @@ namespace QuickPane.UI
             finally { Marshal.ReleaseComObject(dialog); }
         }
 
+        // Runs on the UI thread before the dialog opens, so the check is bounded: a start folder on a
+        // share that does not answer is skipped after a second instead of freezing the click for the
+        // network timeout (prisant-labs/windows-explorer-quickpane#41).
+        private static bool StartFolderAnswers(string startFolder)
+        {
+            bool timedOut;
+            return PathStatus.FolderExistsWithin(startFolder, PathStatus.InteractiveProbeMs, out timedOut);
+        }
+
         private static string PickLegacy(string title, string startFolder)
         {
             using (var dlg = new WinForms.FolderBrowserDialog())
             {
                 dlg.Description = title ?? "Pick a folder";
-                if (!string.IsNullOrEmpty(startFolder) && Directory.Exists(startFolder)) dlg.SelectedPath = startFolder;
+                if (StartFolderAnswers(startFolder)) dlg.SelectedPath = startFolder;
                 return dlg.ShowDialog() == WinForms.DialogResult.OK ? dlg.SelectedPath : null;
             }
         }

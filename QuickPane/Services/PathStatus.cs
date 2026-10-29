@@ -18,6 +18,31 @@ namespace QuickPane.Services
         /// probe result changed (or a slow icon finished extracting). Sections rebuild on it.</summary>
         public static event Action Changed;
 
+        /// <summary>How long a check made while the user waits, such as before a picker opens, may take.
+        /// A local folder answers in microseconds; a share that does not answer would otherwise hold
+        /// the click for the network timeout.</summary>
+        internal const int InteractiveProbeMs = 1000;
+
+        /// <summary>Whether a folder exists, giving up after timeoutMs. For the few places that must
+        /// know before they can continue, such as choosing a picker's start folder. The check runs on
+        /// a thread-pool thread, so an unreachable share costs the caller at most the timeout, and the
+        /// abandoned check finishes on its own. timedOut tells "not there" apart from "not answering"
+        /// (prisant-labs/windows-explorer-quickpane#41).</summary>
+        internal static bool FolderExistsWithin(string path, int timeoutMs, out bool timedOut,
+            Func<string, bool> exists = null)
+        {
+            timedOut = false;
+            if (string.IsNullOrEmpty(path)) return false;
+            var check = exists ?? Directory.Exists;
+            try
+            {
+                var task = System.Threading.Tasks.Task.Run(() => check(path));
+                if (!task.Wait(timeoutMs)) { timedOut = true; return false; }
+                return task.Result;
+            }
+            catch { return false; }
+        }
+
         private sealed class Entry
         {
             public bool Exists;
