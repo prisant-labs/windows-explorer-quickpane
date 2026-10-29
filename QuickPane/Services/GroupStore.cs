@@ -908,11 +908,24 @@ namespace QuickPane.Services
 
         private void OnFsEvent(object sender, FileSystemEventArgs e)
         {
+            if (!TriggersRescan(e.ChangeType, e.FullPath)) return;
             // Scan on the worker, not on the watcher's threadpool callback, so the timer thread is
             // never tied up by a slow disk and the scan is serialized with everything else.
             if (_debounce == null)
                 _debounce = new Timer(_ => WorkQueue.Post(() => { ScanOnce(); RaiseChanged(); }), null, Timeout.Infinite, Timeout.Infinite);
             _debounce.Change(250, Timeout.Infinite);
+        }
+
+        /// <summary>Whether a watcher event can change the groups. Creates, deletes, and renames always
+        /// can. A write-time change matters only for a .lnk, the one kind of file the scan reads: that
+        /// is how a pin edited outside QuickPane, for example in its Properties dialog, is picked up.
+        /// Write-time changes on folders, which fire whenever a file inside is added or removed, and on
+        /// files such as desktop.ini or Thumbs.db each set off a full rescan of every pin for nothing
+        /// (prisant-labs/windows-explorer-quickpane#49).</summary>
+        internal static bool TriggersRescan(WatcherChangeTypes change, string path)
+        {
+            if (change != WatcherChangeTypes.Changed) return true;
+            return path != null && path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase);
         }
 
         public void Dispose()
