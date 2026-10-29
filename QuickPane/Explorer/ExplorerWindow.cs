@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -161,13 +162,39 @@ namespace QuickPane.Explorer
             }
         }
 
+        // The content hosts for one ApplyLayout pass, walked once and reused for measuring, checking,
+        // and moving. Each of those used to walk the tabs again, so a pass walked them two or three
+        // times, and the 1-second sweep runs a pass for every window
+        // (prisant-labs/windows-explorer-quickpane#45). UI thread only; the enforcer walks live.
+        private readonly List<IntPtr> _passHosts = new List<IntPtr>(4);
+
+        private void CollectContentHosts(List<IntPtr> into)
+        {
+            into.Clear();
+            for (var c = NextContentHost(IntPtr.Zero); c != IntPtr.Zero; c = NextContentHost(c)) into.Add(c);
+        }
+
+        private bool _inPass;
+
         /// <summary>Reposition the content host and the sidebar. Called on attach and on relayout.</summary>
         public void ApplyLayout()
         {
+            // A pass that re-entered before the first finished would refill _passHosts while the first
+            // is still reading it. The next event or sweep catches up instead.
+            if (_inPass) return;
+            _inPass = true;
+            try { ApplyLayoutPass(); }
+            finally { _inPass = false; }
+        }
+
+        private void ApplyLayoutPass()
+        {
             if (_applying || _host == null) return;
             if (!NM.IsWindow(_cabinet)) return;
-            IntPtr first = NextContentHost(IntPtr.Zero);
-            if (first == IntPtr.Zero) return;
+            // A tab that closes after this walk only makes its SetWindowPos fail harmlessly, and the
+            // next pass walks again.
+            CollectContentHosts(_passHosts);
+            if (_passHosts.Count == 0) return;
 
             NM.RECT client;
             if (!NM.GetClientRect(_cabinet, out client)) return;
@@ -176,7 +203,7 @@ namespace QuickPane.Explorer
             int width = EffWidth();
             if (w <= width + 40 || h <= 0) return; // too small to split sanely
 
-            int top = MeasureContentTop(client);
+            int top = MeasureContentTop(client, _passHosts);
 
             // Hold everything until the window is actually presented and its toolbar has laid out.
             // Attaching mid-load measured contentTop as 0, which placed the strip over the toolbar and
@@ -203,7 +230,7 @@ namespace QuickPane.Explorer
             // Skip if every host is already where we want it (within tolerance) so we do not fight
             // Explorer's own identical relayout and create a feedback loop. Our own moves raise location
             // events that land back here, find everything placed, and stop.
-            if (AllContentPlaced(contentX, contentY, contentW, contentH2)) return;
+            if (AllContentPlaced(_passHosts, contentX, contentY, contentW, contentH2)) return;
 
             bool verbose = _logCount < 3;
             if (verbose)
@@ -222,7 +249,7 @@ namespace QuickPane.Explorer
                 // process, so a batch silently fails and nothing moves. Separate calls each succeed:
                 // every host that has drifted shifts right, and our sidebar is forced to the TOP so
                 // Explorer's content can never paint over it (SetParent leaves it at the bottom).
-                for (var c = NextContentHost(IntPtr.Zero); c != IntPtr.Zero; c = NextContentHost(c))
+                foreach (var c in _passHosts)
                 {
                     if (!NeedsMove(c, contentX, contentY, contentW, contentH2)) continue;
                     NM.SetWindowPos(c, IntPtr.Zero, contentX, contentY, contentW, contentH2,
@@ -244,7 +271,7 @@ namespace QuickPane.Explorer
             {
                 NM.RECT hr, cr;
                 NM.GetWindowRect(_host.Handle, out hr);
-                NM.GetWindowRect(first, out cr);
+                NM.GetWindowRect(_passHosts[0], out cr);
                 Log.Info("  post-layout hostHwnd=" + _host.Handle.ToString("X") +
                          " hostScreenRect=(" + hr.Left + "," + hr.Top + " " + hr.Width + "x" + hr.Height + ")" +
                          " hostVisible=" + NM.IsWindowVisible(_host.Handle) +
@@ -310,9 +337,9 @@ namespace QuickPane.Explorer
             return !(Near(tl.X, x) && Near(tl.Y, y) && Near(r.Width, cx) && Near(r.Height, cy));
         }
 
-        private bool AllContentPlaced(int x, int y, int cx, int cy)
+        private bool AllContentPlaced(List<IntPtr> hosts, int x, int y, int cx, int cy)
         {
-            for (var c = NextContentHost(IntPtr.Zero); c != IntPtr.Zero; c = NextContentHost(c))
+            foreach (var c in hosts)
             {
                 if (NeedsMove(c, x, y, cx, cy)) return false;
             }
@@ -326,10 +353,17 @@ namespace QuickPane.Explorer
         // edge for a moment, and reading 0 from it would pull the pane and every tab up over the toolbar.
         private int MeasureContentTop(NM.RECT client)
         {
+            var hosts = new List<IntPtr>(4);
+            CollectContentHosts(hosts);
+            return MeasureContentTop(client, hosts);
+        }
+
+        private int MeasureContentTop(NM.RECT client, List<IntPtr> hosts)
+        {
             int best = 0;
             try
             {
-                for (var c = NextContentHost(IntPtr.Zero); c != IntPtr.Zero; c = NextContentHost(c))
+                foreach (var c in hosts)
                 {
                     NM.RECT r;
                     if (!NM.GetWindowRect(c, out r) || r.Width <= 0 || r.Height <= 0) continue;
