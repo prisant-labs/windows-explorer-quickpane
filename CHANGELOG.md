@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.8] - Unreleased
+## [3.10.0.8] - 2026-10-29
 
 ### Fixed
 - A folder click in the pane could wait for unrelated background work to finish first, such as the Recent check, a probe of an offline network path, or a large drag-and-drop copy. Folder clicks in Explorer windows, file dialogs, and the desktop dock now run on a thread of their own, so a click waits only for an earlier click ([#38](https://github.com/prisant-labs/windows-explorer-quickpane/issues/38)).
