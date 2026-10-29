@@ -1028,18 +1028,31 @@ namespace QuickPane.UI
         /// <summary>Walk up from a path that may no longer exist to the nearest ancestor folder that
         /// does, so a picker opens somewhere useful instead of wherever it defaults to. Skipped for a
         /// UNC path: probing an unreachable share one directory at a time can hang far longer than a
-        /// user will wait for a dialog to open.</summary>
+        /// user will wait for a dialog to open. Each check gives up after a second, and the walk stops
+        /// at the first check that times out, because a volume that does not answer will not answer
+        /// one level up either. A disconnected mapped drive used to time out at every level
+        /// (prisant-labs/windows-explorer-quickpane#41).</summary>
         private static string NearestExistingFolder(string path)
         {
+            return NearestExistingFolder(path, null);
+        }
+
+        internal static string NearestExistingFolder(string path, Func<string, bool> exists)
+        {
             if (string.IsNullOrEmpty(path)) return null;
+            bool timedOut;
             if (path.StartsWith(@"\\", StringComparison.Ordinal))
-                return System.IO.Directory.Exists(path) ? path : null;
+                return PathStatus.FolderExistsWithin(path, PathStatus.InteractiveProbeMs, out timedOut, exists) ? path : null;
             try
             {
                 var dir = path;
-                while (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
+                while (!string.IsNullOrEmpty(dir))
+                {
+                    if (PathStatus.FolderExistsWithin(dir, PathStatus.InteractiveProbeMs, out timedOut, exists)) return dir;
+                    if (timedOut) return null;
                     dir = System.IO.Path.GetDirectoryName(dir);
-                return string.IsNullOrEmpty(dir) ? null : dir;
+                }
+                return null;
             }
             catch { return null; }
         }
