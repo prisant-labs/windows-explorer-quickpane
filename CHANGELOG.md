@@ -11,6 +11,7 @@
 - The Recent section's 2-second check of the Explorer window in front no longer queries every open Explorer window each time. It first compares the window's title and front tab with the last check, and runs the full query only when one of them changed, or every 30 seconds otherwise ([#39](https://github.com/prisant-labs/windows-explorer-quickpane/issues/39)).
 - QuickPane reads the groups folder in the background at startup and when the groups folder setting changes. A groups folder on a slow or unreachable network share no longer holds up startup and the tray icon. Pins appear a moment after the pane does ([#42](https://github.com/prisant-labs/windows-explorer-quickpane/issues/42)).
 - The log keeps its files open for the session instead of opening and closing a file for every line. Each line is still written to disk at once, the files can still be opened in an editor while QuickPane runs, and a log file deleted while open is created again ([#46](https://github.com/prisant-labs/windows-explorer-quickpane/issues/46)).
+- When the shared icon cache is full, it drops only the icons used longest ago, instead of emptying completely and making every visible row load its icon again ([#47](https://github.com/prisant-labs/windows-explorer-quickpane/issues/47)).
 
 ## [3.10.0.7] - 2026-10-29
 
