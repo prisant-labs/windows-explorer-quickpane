@@ -35,18 +35,30 @@ namespace QuickPane.Services
 
         public string Root { get { return _settings.ExpandedGroupsPath; } }
 
+        // The first scan and a reload run on the worker. Both walk the groups folder and read every
+        // pin's .lnk through COM, and on the UI thread a groups folder on a slow or unreachable share
+        // froze startup, before the tray icon existed, for the network timeout
+        // (prisant-labs/windows-explorer-quickpane#42). Panes show an empty Groups section until
+        // GroupsChanged arrives and they rebuild.
         public void Start()
         {
-            ScanOnce();
-            SeedDefaultsIfEmpty();
-            InstallWatcher();
+            WorkQueue.Post(() =>
+            {
+                ScanOnce();
+                SeedDefaultsIfEmpty();
+                InstallWatcher();
+                RaiseChanged();
+            });
         }
 
         public void Reload()
         {
-            InstallWatcher();
-            ScanOnce();
-            RaiseChanged();
+            WorkQueue.Post(() =>
+            {
+                InstallWatcher();
+                ScanOnce();
+                RaiseChanged();
+            });
         }
 
         // GroupsChanged always fires on the UI thread, because scans can complete on the

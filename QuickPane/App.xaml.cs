@@ -151,7 +151,7 @@ namespace QuickPane
             Theme.Apply();
 
             Groups = new GroupStore(Settings);
-            Groups.Start();          // initial scan + FileSystemWatcher on the groups folder
+            Groups.Start();          // initial scan + FileSystemWatcher on the groups folder, on the worker
 
             // If the groups path or mode changes in settings, react. Reload groups only when the
             // groups folder actually changed: reloading on every save also ran on width release and
