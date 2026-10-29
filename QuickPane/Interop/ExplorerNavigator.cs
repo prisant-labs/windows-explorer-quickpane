@@ -148,8 +148,10 @@ namespace QuickPane.Interop
         /// whichever tab was in front (prisant-labs/windows-explorer-quickpane#35). Each tab's own
         /// ShellTabWindowClass handle comes from its IShellBrowser, and the active tab is the topmost
         /// ShellTabWindowClass child. ExplorerWindow lays the tabs out with SWP_NOZORDER, so it never
-        /// disturbs that order. A lone match, which is every Windows 10 window and every single-tab
-        /// window, skips the tab lookup entirely.
+        /// disturbs that order. A window with at most one tab, which is every Windows 10 window and
+        /// most Windows 11 windows, stops at the first match instead of reading the rest of the list,
+        /// because reading every entry costs two cross-process calls per Explorer tab on the desktop
+        /// (prisant-labs/windows-explorer-quickpane#40).
         /// </summary>
         private static object FindActiveTab(object windows, IntPtr topLevelHwnd)
         {
@@ -157,6 +159,10 @@ namespace QuickPane.Interop
             var matches = new List<object>();
             try
             {
+                IntPtr firstTab = NM.FindWindowEx(topLevelHwnd, IntPtr.Zero, "ShellTabWindowClass", null);
+                long secondTab = firstTab == IntPtr.Zero ? 0
+                    : NM.FindWindowEx(topLevelHwnd, firstTab, "ShellTabWindowClass", null).ToInt64();
+                bool firstMatchWins = HasAtMostOneTab(secondTab);
                 int count = ToInt(Get(windows, "Count"));
                 for (int i = 0; i < count; i++)
                 {
@@ -164,7 +170,11 @@ namespace QuickPane.Interop
                     try { w = Call(windows, "Item", i); }
                     catch { }
                     if (w == null) continue;
-                    if (HwndOf(w) == target) matches.Add(w);
+                    if (HwndOf(w) == target)
+                    {
+                        matches.Add(w);
+                        if (firstMatchWins) break;
+                    }
                     else Release(w);
                 }
                 if (matches.Count == 0) return null;
@@ -172,7 +182,7 @@ namespace QuickPane.Interop
                 int pick = 0;
                 if (matches.Count > 1)
                 {
-                    long active = NM.FindWindowEx(topLevelHwnd, IntPtr.Zero, "ShellTabWindowClass", null).ToInt64();
+                    long active = firstTab.ToInt64();
                     var tabs = new long[matches.Count];
                     for (int i = 0; i < tabs.Length; i++) tabs[i] = TabHwndOf(matches[i]);
                     pick = PickActiveTab(tabs, active);
@@ -186,6 +196,10 @@ namespace QuickPane.Interop
                 foreach (var m in matches) Release(m);
             }
         }
+
+        /// <summary>True when the Explorer window has no second ShellTabWindowClass child, so the first
+        /// shell window matching its HWND is the only one and the rest of the list need not be read.</summary>
+        internal static bool HasAtMostOneTab(long secondTab) { return secondTab == 0; }
 
         /// <summary>Which of the shell windows sharing one top-level HWND to drive, given each one's
         /// tab handle (0 where the lookup failed) and the active tab's handle (0 when unknown). Falls
