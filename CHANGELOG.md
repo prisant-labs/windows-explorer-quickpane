@@ -1,5 +1,7 @@
 # Changelog
 
+## [3.10.0.7] - Unreleased
+
 ## [3.10.0.6] - 2026-10-28
 
 ### Changed
