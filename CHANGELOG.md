@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.7] - Unreleased
+## [3.10.0.7] - 2026-10-29
 
 ### Fixed
 - In a Windows 11 Explorer window with more than one tab, clicking a folder in the pane opened it in the first tab instead of the tab on screen, and the Recent section recorded the first tab's folder instead of the one being viewed. Both now follow the tab in front ([#35](https://github.com/prisant-labs/windows-explorer-quickpane/issues/35)).
