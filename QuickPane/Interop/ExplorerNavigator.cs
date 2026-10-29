@@ -23,12 +23,12 @@ namespace QuickPane.Interop
     /// </summary>
     internal static class ExplorerNavigator
     {
-        /// <summary>Navigate on the background worker. Enumerating shell windows is cross-process COM
+        /// <summary>Navigate on the navigation lane. Enumerating shell windows is cross-process COM
         /// that blocks for as long as Explorer is busy, and the UI thread shares Explorer's input queue
         /// in Inside mode, so this must never run there.</summary>
         public static void NavigateAsync(IntPtr topLevelHwnd, string path)
         {
-            WorkQueue.Post(() => Navigate(topLevelHwnd, path));
+            WorkQueue.PostNavigation(() => Navigate(topLevelHwnd, path));
         }
 
         // 0x800700AA is ERROR_BUSY surfaced through COM: the window is mid-operation rather than wrong

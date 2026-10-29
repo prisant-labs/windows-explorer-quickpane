@@ -228,7 +228,7 @@ namespace QuickPane.Explorer
                 Action<string> nav = p =>
                 {
                     App.RecentApps?.RecordDialog(ownerExe, p);
-                    WorkQueue.Post(() => DialogNavigator.Navigate(hwnd, p));
+                    WorkQueue.PostNavigation(() => DialogNavigator.Navigate(hwnd, p));
                 };
                 ActiveDialog.App = owner;
 
@@ -376,7 +376,7 @@ namespace QuickPane.Explorer
             var owner = DialogNavigator.Owner(hwnd);
             if (!string.IsNullOrEmpty(owner) && owner != "unknown") _besideApps.Add(owner);
             if (!NM.IsWindow(hwnd) || _beside.ContainsKey(hwnd)) return;
-            var pane = new FollowerPane(hwnd, p => WorkQueue.Post(() => DialogNavigator.Navigate(hwnd, p)));
+            var pane = new FollowerPane(hwnd, p => WorkQueue.PostNavigation(() => DialogNavigator.Navigate(hwnd, p)));
             _beside[hwnd] = pane;
             PositionBeside(hwnd, pane);
             Log.Event("glitch", "the " + owner + " dialog " + hwnd.ToString("X") +

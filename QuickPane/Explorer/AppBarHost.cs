@@ -264,9 +264,9 @@ namespace QuickPane.Explorer
             App.Recents?.RecordNavigation(path);
             // If an Explorer window is open, change its location; otherwise open a new one. After the
             // new window opens it becomes the active Explorer, so the next click navigates it. The
-            // COM navigation runs on the worker because it blocks for as long as Explorer is busy.
+            // COM navigation runs on the navigation lane because it blocks for as long as Explorer is busy.
             var last = _lastExplorer;
-            WorkQueue.Post(() =>
+            WorkQueue.PostNavigation(() =>
             {
                 if (last != IntPtr.Zero && NM.IsWindow(last) && ExplorerNavigator.Navigate(last, path))
                 {
