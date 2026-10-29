@@ -89,12 +89,12 @@ namespace QuickPane.UI
     internal static class IconHelper
     {
         private static readonly object Gate = new object();
-        private static readonly Dictionary<string, ImageSource> Cache =
-            new Dictionary<string, ImageSource>(StringComparer.OrdinalIgnoreCase);
+        private const int MaxCache = 600;
+        private static readonly LruCache<string, ImageSource> Cache =
+            new LruCache<string, ImageSource>(MaxCache, StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, bool> FastRoots =
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
         private static readonly HashSet<string> Pending = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private const int MaxCache = 600;
         private static ImageSource _genericFolder;
 
         /// <summary>
@@ -189,8 +189,8 @@ namespace QuickPane.UI
         {
             lock (Gate)
             {
-                if (Cache.Count > MaxCache) Cache.Clear(); // crude but keeps growth bounded
-                Cache[key] = img;
+                // Full: the icon used longest ago goes, rather than all of them (#47).
+                Cache.Set(key, img);
             }
         }
 
