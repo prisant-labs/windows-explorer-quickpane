@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security.AccessControl;
+using Microsoft.Win32.SafeHandles;
 
 namespace QuickPane.Services
 {
@@ -171,13 +175,24 @@ namespace QuickPane.Services
             catch (Exception ex) { Error("open log folder", ex); }
         }
 
+        // One open handle per log file for the session. Opening the file for every line cost far more
+        // than writing the line, and antivirus software can scan each open
+        // (prisant-labs/windows-explorer-quickpane#46). Guarded by Gate.
+        private static readonly Dictionary<string, AppendOnlyFile> Files =
+            new Dictionary<string, AppendOnlyFile>(StringComparer.OrdinalIgnoreCase);
+
         private static void Write(string path, string level, string message)
         {
             if (path == null) path = Path.Combine(Path.GetTempPath(), "quickpane.log");
             var line = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + " [" + level + "] {" + _sessionId + "} " + message;
             try
             {
-                lock (Gate) { File.AppendAllText(path, line + Environment.NewLine); }
+                lock (Gate)
+                {
+                    AppendOnlyFile file;
+                    if (!Files.TryGetValue(path, out file)) Files[path] = file = new AppendOnlyFile(path);
+                    file.AppendLine(line);
+                }
             }
             catch
             {
@@ -196,6 +211,13 @@ namespace QuickPane.Services
                 var fi = new FileInfo(path);
                 if (!fi.Exists || fi.Length <= maxBytes) return;
 
+                // A handle left open would keep writing into the renamed archive.
+                lock (Gate)
+                {
+                    AppendOnlyFile open;
+                    if (Files.TryGetValue(path, out open)) open.Close();
+                }
+
                 var oldest = path + "." + keep;
                 if (File.Exists(oldest)) File.Delete(oldest);
                 for (int i = keep - 1; i >= 1; i--)
@@ -207,5 +229,107 @@ namespace QuickPane.Services
             }
             catch { }
         }
+    }
+
+    /// <summary>
+    /// One log file kept open for appending across writes. The handle has append-only rights, so the
+    /// system puts every write at the current end of the file, even when the watchdog process
+    /// appends to the same file. It shares read, write, and delete, so the log stays readable in an
+    /// editor and can be deleted or rolled while QuickPane runs. Each line is flushed, so a crash
+    /// loses nothing. A failed write drops the handle and retries once on a fresh one.
+    ///
+    /// Every recheckMs the handle is compared with whatever file now has the log's name. Every
+    /// QuickPane process rolls the logs when it starts, including a second copy that exits at once
+    /// because one is already running, so the file this handle holds can be renamed to debug.log.1
+    /// underneath it. Without the check, every later line of the session would land in the archive.
+    /// A log deleted while open is created again the same way. Not thread-safe: Log serializes calls
+    /// under its lock.
+    /// </summary>
+    internal sealed class AppendOnlyFile : IDisposable
+    {
+        private static readonly System.Text.Encoding Utf8 = new System.Text.UTF8Encoding(false);
+        private readonly string _path;
+        private readonly int _recheckMs;
+        private FileStream _stream;
+        private int _checkedTick;
+
+        // Pack 4: each FILETIME is two DWORDs, so the native struct does not align them to 8 bytes.
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        private struct ByHandleFileInformation
+        {
+            public uint FileAttributes;
+            public long CreationTime, LastAccessTime, LastWriteTime;
+            public uint VolumeSerialNumber, FileSizeHigh, FileSizeLow, NumberOfLinks, FileIndexHigh, FileIndexLow;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GetFileInformationByHandle(SafeFileHandle file, out ByHandleFileInformation info);
+
+        // Volume and file index together identify a file on disk, whatever its current name.
+        private static bool SameFile(SafeFileHandle a, SafeFileHandle b)
+        {
+            ByHandleFileInformation x, y;
+            if (!GetFileInformationByHandle(a, out x) || !GetFileInformationByHandle(b, out y)) return false;
+            return x.VolumeSerialNumber == y.VolumeSerialNumber && x.FileIndexHigh == y.FileIndexHigh && x.FileIndexLow == y.FileIndexLow;
+        }
+
+        // Whether the log's name still points at the file this handle holds. A missing file, or one
+        // that cannot be opened to look, counts as moved.
+        private bool StillNamed()
+        {
+            try
+            {
+                using (var named = new FileStream(_path, FileMode.Open, FileSystemRights.ReadAttributes,
+                    FileShare.ReadWrite | FileShare.Delete, 1, FileOptions.None))
+                    return SameFile(_stream.SafeFileHandle, named.SafeFileHandle);
+            }
+            catch { return false; }
+        }
+
+        public AppendOnlyFile(string path, int recheckMs = 30000)
+        {
+            _path = path;
+            _recheckMs = recheckMs;
+        }
+
+        public void AppendLine(string line)
+        {
+            var bytes = Utf8.GetBytes(line + Environment.NewLine);
+            try { Append(bytes); }
+            catch
+            {
+                Close();
+                Append(bytes);
+            }
+        }
+
+        private void Append(byte[] bytes)
+        {
+            if (_stream != null && unchecked(Environment.TickCount - _checkedTick) >= _recheckMs)
+            {
+                _checkedTick = Environment.TickCount;
+                if (!StillNamed()) Close();
+            }
+            if (_stream == null)
+            {
+                // OpenOrCreate rather than Append, which .NET refuses alongside ReadAttributes. With
+                // AppendData and no WriteData, the system writes at the end whatever the position.
+                // ReadAttributes lets StillNamed read the handle's file index. It grants no write
+                // access, so writes still go only to the end.
+                _stream = new FileStream(_path, FileMode.OpenOrCreate, FileSystemRights.AppendData | FileSystemRights.ReadAttributes,
+                    FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.None);
+                _checkedTick = Environment.TickCount;
+            }
+            _stream.Write(bytes, 0, bytes.Length);
+            _stream.Flush();
+        }
+
+        public void Close()
+        {
+            try { if (_stream != null) _stream.Dispose(); } catch { }
+            _stream = null;
+        }
+
+        public void Dispose() { Close(); }
     }
 }
