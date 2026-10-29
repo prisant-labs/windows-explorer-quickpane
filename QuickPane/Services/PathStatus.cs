@@ -54,8 +54,12 @@ namespace QuickPane.Services
 
         private const int TtlMs = 15000;
         private static readonly object Gate = new object();
-        private static readonly Dictionary<string, Entry> Map =
-            new Dictionary<string, Entry>(StringComparer.OrdinalIgnoreCase);
+        // Capped, because it held every path any row had ever shown for the life of the process, and
+        // QuickPane runs for days (prisant-labs/windows-explorer-quickpane#48). An evicted path reads
+        // as never probed: optimistic, with a fresh probe queued, which is what a new path gets.
+        private const int MaxEntries = 4096;
+        private static readonly LruCache<string, Entry> Map =
+            new LruCache<string, Entry>(MaxEntries, StringComparer.OrdinalIgnoreCase);
         private static bool _raiseQueued;
 
         /// <summary>Cached existence; optimistic true for never-probed paths. Queues a probe.</summary>
@@ -104,7 +108,7 @@ namespace QuickPane.Services
                 if (!Map.TryGetValue(path, out e))
                 {
                     e = new Entry { Exists = true, IsFile = GuessIsFile(path) };
-                    Map[path] = e;
+                    Map.Set(path, e);
                     probe = true;
                 }
                 else if (!e.InFlight && (!e.Probed || Environment.TickCount - e.Tick > TtlMs))
