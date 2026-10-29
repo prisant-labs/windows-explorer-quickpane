@@ -7,6 +7,7 @@
 
 ### Changed
 - In an Explorer window with only one tab, a folder click and the Recent check stop at the first matching shell window instead of reading the list of every open tab on the desktop ([#40](https://github.com/prisant-labs/windows-explorer-quickpane/issues/40)).
+- The Recent section's 2-second check of the Explorer window in front no longer queries every open Explorer window each time. It first compares the window's title and front tab with the last check, and runs the full query only when one of them changed, or every 30 seconds otherwise ([#39](https://github.com/prisant-labs/windows-explorer-quickpane/issues/39)).
 
 ## [3.10.0.7] - 2026-10-29
 

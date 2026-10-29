@@ -30,17 +30,17 @@ namespace QuickPane.Explorer
             // In-window navigations do not change the foreground window, so a light poll of the
             // foreground Explorer window catches those. RecordNavigation already skips repeats.
             _poll = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(2000) };
-            _poll.Tick += (s, e) => Track(NM.GetForegroundWindow());
+            _poll.Tick += (s, e) => Track(NM.GetForegroundWindow(), fromPoll: true);
             _poll.Start();
 
-            Track(NM.GetForegroundWindow()); // record whatever is already in front
+            Track(NM.GetForegroundWindow(), fromPoll: false); // record whatever is already in front
         }
 
         private void OnEvt(uint evt, IntPtr hwnd, int idObject, int idChild, uint thread)
         {
             if (idObject != NM.OBJID_WINDOW || idChild != 0 || hwnd == IntPtr.Zero) return;
             NoteApp(hwnd);
-            Track(hwnd);
+            Track(hwnd, fromPoll: false);
         }
 
         // Which program was just switched to. Reading the path is a pair of handle calls, so it happens
@@ -65,11 +65,33 @@ namespace QuickPane.Explorer
 
         private IntPtr _lastAppHwnd;
 
-        private void Track(IntPtr hwnd)
+        // What the window looked like at the last COM query: which window, which tab was in front, and
+        // its title. All three are plain Win32 reads, with no cross-process COM.
+        private IntPtr _queriedHwnd;
+        private long _queriedTab;
+        private string _queriedTitle;
+        private int _queriedTick;
+        internal const int RefreshMs = 30000;
+
+        private void Track(IntPtr hwnd, bool fromPoll)
         {
             if (hwnd == IntPtr.Zero || _busy) return;
             var c = NM.ClassOf(hwnd);
             if (c != "CabinetWClass" && c != "ExploreWClass") return;
+
+            // A poll tick whose window, front tab, and title all match the last query skips the COM
+            // query, which walks every shell window inside Explorer's process. Nearly every tick used to
+            // find the same folder as the one before (prisant-labs/windows-explorer-quickpane#39).
+            long tab = NM.FindWindowEx(hwnd, IntPtr.Zero, "ShellTabWindowClass", null).ToInt64();
+            string title = NM.TextOf(hwnd);
+            int now = Environment.TickCount;
+            if (fromPoll && !ShouldQuery(hwnd == _queriedHwnd, tab == _queriedTab,
+                    string.Equals(title, _queriedTitle, StringComparison.Ordinal), unchecked(now - _queriedTick)))
+                return;
+            _queriedHwnd = hwnd;
+            _queriedTab = tab;
+            _queriedTitle = title;
+            _queriedTick = now;
 
             _busy = true;
             WorkQueue.Post(() =>
@@ -88,6 +110,16 @@ namespace QuickPane.Explorer
                 catch (Exception ex) { Log.Error("recent track", ex); }
                 finally { _busy = false; }
             });
+        }
+
+        /// <summary>Whether a poll tick should run the COM query. Any change to the window, its front tab,
+        /// or its title queries at once. Otherwise the query still runs every RefreshMs, which catches a
+        /// move between two folders with the same name, since the title shows only the folder's name.
+        /// Activation events never ask: they always query.</summary>
+        internal static bool ShouldQuery(bool sameWindow, bool sameTab, bool sameTitle, int msSinceLastQuery)
+        {
+            if (!sameWindow || !sameTab || !sameTitle) return true;
+            return msSinceLastQuery < 0 || msSinceLastQuery >= RefreshMs;
         }
 
         public void Dispose()
