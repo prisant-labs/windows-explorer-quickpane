@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.10.0.11] - 2026-10-30
+
+### Fixed
+- While an Explorer window's border is dragged, the pane now steps aside, so Explorer's own navigation tree stays fully visible during the drag instead of sitting under the pane. The pane returns beside the tree on release. Moving a window by its title bar leaves the pane in place ([#102](https://github.com/prisant-labs/windows-explorer-quickpane/issues/102)).
+- An Open or Save dialog with the pane inside no longer switches to the pane beside it. The common Save dialog applies its remembered size just after it appears, and that size change was read as the dialog fighting the pane, which sent that dialog and every later one from the same app beside. The pane is now fitted inside the size the dialog chose, and the dialog keeps one size from one open to the next. Dragging a dialog's border hides the pane until release, and a dialog dragged too narrow to share goes beside on its own without affecting the app's later dialogs ([#103](https://github.com/prisant-labs/windows-explorer-quickpane/issues/103)).
 ## [3.10.0.10] - 2026-10-30
 
 ### Fixed
