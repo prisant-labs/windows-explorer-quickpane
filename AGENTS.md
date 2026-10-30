@@ -51,7 +51,7 @@ A change is not done until the build succeeds with no errors and every test pass
 | `tests/QuickPane.Tests/` | Unit tests. |
 | `scripts/` | Build and test scripts. |
 
-The "Traps in the code" table in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) lists the behaviors that have caused bugs, such as Windows 11 tabs, keyboard focus, and file dialogs. Read it before changing anything in `Explorer/` or `Interop/`.
+The "Traps in the code" table in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) lists the behaviors that have caused bugs, such as Windows 11 tabs, keyboard focus, file dialogs, profile switches, and pane lifetime. Read it before changing anything in `Explorer/`, `Interop/`, a pane section, or `GroupStore`.
 
 ## Local-only notes
 

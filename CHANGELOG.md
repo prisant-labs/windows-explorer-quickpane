@@ -1,6 +1,19 @@
 # Changelog
 
-## [3.10.0.9] - Unreleased
+## [3.10.0.9] - 2026-10-29
+
+These fixes come from an independent review of 3.10.0.8.
+
+### Fixed
+- After a profile switch, an edit made before the new profile's groups finished loading was written into the previous profile's folder, and reordering groups could move the previous profile's group folders into the new one. The pane now drops the old groups at once, discards a scan that finished for the old folder, and refuses an edit on a group, tab, or pin outside the current groups folder. This was a regression in 3.10.0.8 ([#68](https://github.com/prisant-labs/windows-explorer-quickpane/issues/68)).
+- A pane section closed while a rebuild was waiting could subscribe itself again, so it stayed in memory and kept rebuilding for the rest of the session. Closing a section is now final, and a closed pane ignores rebuilds that were already queued ([#69](https://github.com/prisant-labs/windows-explorer-quickpane/issues/69)).
+- With several Windows 11 tabs, the tab in front was read before the list of Explorer windows, so a tab switch during a slow listing could send a click to the previous tab. The tab in front is now read again after the list ([#72](https://github.com/prisant-labs/windows-explorer-quickpane/issues/72)).
+
+### Changed
+- Loading settings at startup no longer creates the groups folder on the UI thread. A groups folder on a share that does not answer no longer holds up startup; the background scan creates the folder ([#70](https://github.com/prisant-labs/windows-explorer-quickpane/issues/70)).
+- A pin click in an Open or Save dialog's pane goes to the navigation thread first. Recording the app for Recent Apps now happens afterwards in the background, and writes to `recentapps.txt` take turns ([#71](https://github.com/prisant-labs/windows-explorer-quickpane/issues/71)).
+- The shared window event hook reports in the log when a hook cannot be removed, or is removed from the wrong thread ([#73](https://github.com/prisant-labs/windows-explorer-quickpane/issues/73)).
+- `docs/DEVELOPMENT.md` records that the Recent check can miss a short visit to a folder with the same name as the one before ([#74](https://github.com/prisant-labs/windows-explorer-quickpane/issues/74)).
 
 ## [3.10.0.8] - 2026-10-29
 
