@@ -33,6 +33,7 @@ namespace QuickPane.Services
         private readonly List<Entry> _items = new List<Entry>();
         private readonly string _file;
         private readonly object _gate = new object();
+        private readonly object _fileGate = new object();
 
         /// <summary>Raised when the list changes. The flag is true when a person asked for it, which is
         /// what tells the pane to redraw at once rather than waiting for a quiet moment.</summary>
@@ -249,16 +250,23 @@ namespace QuickPane.Services
             catch (Exception ex) { Log.Error("recent apps load", ex); }
         }
 
+        // Records arrive on the general lane while Forget and Clear run on the UI thread, so two saves
+        // can overlap. One writer at a time, each taking its snapshot inside the file lock, means the
+        // last write always carries the newest list. The list lock is not held across the write, so
+        // reading the list never waits for the disk.
         private void Save()
         {
             try
             {
-                List<Entry> snapshot;
-                lock (_gate) snapshot = _items.ToList();
-                Directory.CreateDirectory(Path.GetDirectoryName(_file));
-                File.WriteAllLines(_file, snapshot.Select(e =>
-                    e.Name + "|" + e.ExePath + "|" + (e.Folder ?? "") + "|" + e.When.ToString("o") + "|" +
-                    ((e.FromDialog ? "dialog" : "") + (e.FromOpen ? ",open" : "")).Trim(',')));
+                lock (_fileGate)
+                {
+                    List<Entry> snapshot;
+                    lock (_gate) snapshot = _items.ToList();
+                    Directory.CreateDirectory(Path.GetDirectoryName(_file));
+                    File.WriteAllLines(_file, snapshot.Select(e =>
+                        e.Name + "|" + e.ExePath + "|" + (e.Folder ?? "") + "|" + e.When.ToString("o") + "|" +
+                        ((e.FromDialog ? "dialog" : "") + (e.FromOpen ? ",open" : "")).Trim(',')));
+                }
             }
             catch (Exception ex) { Log.Error("recent apps save", ex); }
         }
