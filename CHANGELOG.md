@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.10.0.9] - Unreleased
+## [3.10.0.9] - 2026-10-29
 
 These fixes come from an independent review of 3.10.0.8.
 
