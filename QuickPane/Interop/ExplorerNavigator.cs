@@ -151,7 +151,10 @@ namespace QuickPane.Interop
         /// disturbs that order. A window with at most one tab, which is every Windows 10 window and
         /// most Windows 11 windows, stops at the first match instead of reading the rest of the list,
         /// because reading every entry costs two cross-process calls per Explorer tab on the desktop
-        /// (prisant-labs/windows-explorer-quickpane#40).
+        /// (prisant-labs/windows-explorer-quickpane#40). The tab in front is read again after the list,
+        /// because the list can take long enough for the user to switch tabs
+        /// (prisant-labs/windows-explorer-quickpane#72). The one-tab shortcut can still miss a tab
+        /// opened while the list is read; the next click or Recent sample sees it.
         /// </summary>
         private static object FindActiveTab(object windows, IntPtr topLevelHwnd)
         {
@@ -182,7 +185,7 @@ namespace QuickPane.Interop
                 int pick = 0;
                 if (matches.Count > 1)
                 {
-                    long active = firstTab.ToInt64();
+                    long active = NM.FindWindowEx(topLevelHwnd, IntPtr.Zero, "ShellTabWindowClass", null).ToInt64();
                     var tabs = new long[matches.Count];
                     for (int i = 0; i < tabs.Length; i++) tabs[i] = TabHwndOf(matches[i]);
                     pick = PickActiveTab(tabs, active);
