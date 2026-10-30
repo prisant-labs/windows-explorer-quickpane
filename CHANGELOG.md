@@ -36,6 +36,8 @@ These fixes come from an independent review of 3.10.0.8.
 
 ## [3.10.0.7] - 2026-10-29
 
+Never published as a release. Its fix first shipped in 3.10.0.8.
+
 ### Fixed
 - In a Windows 11 Explorer window with more than one tab, clicking a folder in the pane opened it in the first tab instead of the tab on screen, and the Recent section recorded the first tab's folder instead of the one being viewed. Both now follow the tab in front ([#35](https://github.com/prisant-labs/windows-explorer-quickpane/issues/35)).
 
@@ -49,6 +51,8 @@ These fixes come from an independent review of 3.10.0.8.
 
 ## [3.10.0.5] - 2026-10-28
 
+Never published as a release. Its changes first shipped in 3.10.0.6.
+
 ### Changed
 - On Windows 11 the pane and Settings draw their icons with Segoe Fluent Icons, the shell's current icon set. Windows 10 keeps Segoe MDL2 Assets ([#24](https://github.com/prisant-labs/windows-explorer-quickpane/issues/24)).
 - The settings gear stays at the bottom of the pane when the pane is collapsed to its narrow strip, so Settings opens in one click without expanding the pane first ([#22](https://github.com/prisant-labs/windows-explorer-quickpane/issues/22)).
@@ -60,6 +64,8 @@ These fixes come from an independent review of 3.10.0.8.
 - The pane always used the default blue instead of the Windows accent color, because it read the accent from a registry key that does not hold it. The active tab, the drag drop line, and the accent-colored Settings controls now follow the accent chosen in Windows, including changes made while QuickPane runs ([#20](https://github.com/prisant-labs/windows-explorer-quickpane/issues/20)).
 
 ## [3.10.0.4] - 2026-10-27
+
+Never published as a release. Its changes first shipped in 3.10.0.6.
 
 ### Changed
 - Add/Remove Programs names the app "QuickPane 3.10.0.4" instead of "QuickPane version 3.10.0.4" ([#18](https://github.com/prisant-labs/windows-explorer-quickpane/issues/18)).
