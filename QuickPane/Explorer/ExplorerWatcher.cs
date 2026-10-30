@@ -27,6 +27,7 @@ namespace QuickPane.Explorer
         private WinEventHook _lifecycleHook;   // CREATE / DESTROY / SHOW
         private WinEventHook _locationHook;     // LOCATIONCHANGE
         private WinEventHook _foregroundHook;   // SYSTEM_FOREGROUND
+        private WinEventHook _moveSizeHook;     // SYSTEM_MOVESIZESTART / MOVESIZEEND
         private DispatcherTimer _retryTimer;
         private DispatcherTimer _sweepTimer;
         private HwndSource _deviceSink;
@@ -38,11 +39,33 @@ namespace QuickPane.Explorer
         private Thread _enforcer;
         private volatile bool _stopEnforcer;
         // EnforceFast runs only in short bursts, triggered when a window first shows or is activated,
-        // because those are the only moments Explorer resets its content to full width on its own. There
-        // is no constant poll, so a resize is held purely by OnLocationEvent with nothing fighting it.
+        // because those are the moments Explorer resets its content to full width outside a drag. There
+        // is no constant poll.
         private volatile int _burstUntilTick;
         private readonly System.Threading.AutoResetEvent _burstSignal = new System.Threading.AutoResetEvent(false);
         private void Burst(int ms = 250) { _burstUntilTick = Environment.TickCount + ms; _burstSignal.Set(); }
+
+        // The window whose border the user is dragging. While Windows runs the drag, Explorer puts its
+        // tab back at full width on every step, and the split used to be reapplied after each one, so
+        // Explorer's tree and the file list jumped under the pane and back about a hundred times in a
+        // two-second drag. Holding the split from the enforcer only shortened each jump and made the
+        // border trail the cursor, because each correction waits for Explorer's thread to finish its own
+        // layout first. So the dragged window is left to Explorer until the drag ends, and the split is
+        // reapplied once on release: two jumps per drag instead of a hundred
+        // (prisant-labs/windows-explorer-quickpane#99). A programmatic resize never resets the tab, so
+        // only the drag, which MOVESIZESTART and MOVESIZEEND bracket, needs this. Capped, so a lost
+        // end event cannot leave a window unmanaged.
+        private ExplorerWindow _sizing;
+        private int _sizingSinceTick;
+        internal const int DragYieldCapMs = 30000;
+
+        /// <summary>True while a drag that started at sinceTick is still within the cap. Compares by
+        /// subtraction, so it stays right when Environment.TickCount wraps after 24.9 days.</summary>
+        internal static bool DragYieldActive(int sinceTick, int nowTick)
+        {
+            int elapsed = unchecked(nowTick - sinceTick);
+            return elapsed >= 0 && elapsed < DragYieldCapMs;
+        }
 
         public void Start()
         {
@@ -59,6 +82,11 @@ namespace QuickPane.Explorer
             _foregroundHook = new WinEventHook(NM.EVENT_SYSTEM_FOREGROUND, NM.EVENT_SYSTEM_FOREGROUND);
             _foregroundHook.Event += OnForegroundEvent;
             _foregroundHook.Install();
+
+            // Leave a window to Explorer for the length of a border drag (see _sizing).
+            _moveSizeHook = new WinEventHook(NM.EVENT_SYSTEM_MOVESIZESTART, NM.EVENT_SYSTEM_MOVESIZEEND);
+            _moveSizeHook.Event += OnMoveSizeEvent;
+            _moveSizeHook.Install();
 
             _retryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(120) };
             _retryTimer.Tick += OnRetryTick;
@@ -84,9 +112,9 @@ namespace QuickPane.Explorer
             var buffer = new List<ExplorerWindow>(8);
             while (!_stopEnforcer)
             {
-                // Spin fast only inside a burst (a window just shown or activated). Outside a burst, and
-                // throughout a resize, the split is held event-driven from OnLocationEvent, so there is no
-                // perpetual cross-process poll to fight Explorer and make the drag lag.
+                // Spin fast only inside a burst (a window just shown or activated). Outside a burst, the
+                // split is held event-driven from OnLocationEvent, so there is no perpetual cross-process
+                // poll to fight Explorer. A window being dragged is skipped (ExplorerWindow.Yielding).
                 if (Environment.TickCount - _burstUntilTick < 0)
                 {
                     buffer.Clear();
@@ -125,6 +153,7 @@ namespace QuickPane.Explorer
                 {
                     _windows.Remove(hwnd);
                     TrackAttached(win, false);
+                    ForgetSizing(win);
                     win.Dispose();
                     Log.Info("Explorer window closed " + hwnd.ToString("X"));
                 }
@@ -175,6 +204,36 @@ namespace QuickPane.Explorer
         private void OnForegroundEvent(uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread)
         {
             if (_windows.TryGetValue(hwnd, out var win)) { win.ApplyLayout(); Burst(); }
+        }
+
+        private void OnMoveSizeEvent(uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread)
+        {
+            if (idObject != NM.OBJID_WINDOW || !_windows.TryGetValue(hwnd, out var win)) return;
+
+            if (eventType == NM.EVENT_SYSTEM_MOVESIZESTART)
+            {
+                // A title-bar move raises the same events. Yielding then only defers any correction to
+                // the release. A window still marked from a drag whose end event was lost is released
+                // first, so it cannot stay unmanaged until the cap.
+                var previous = _sizing;
+                if (previous != null && previous != win) { ForgetSizing(previous); previous.ApplyLayout(); }
+                _sizingSinceTick = Environment.TickCount;
+                _sizing = win;
+                win.Yielding = true;
+                return;
+            }
+
+            if (_sizing != win) return;
+            ForgetSizing(win);
+            win.ApplyLayout();
+            Burst(); // Explorer can lay out once more as the drag ends
+        }
+
+        // Manage a window normally again: its drag ended, its end event was lost, or it closed.
+        private void ForgetSizing(ExplorerWindow win)
+        {
+            if (_sizing == win) _sizing = null;
+            win.Yielding = false;
         }
 
         private static bool IsExplorerFolder(IntPtr hwnd)
@@ -253,7 +312,11 @@ namespace QuickPane.Explorer
         {
             // Iterate a snapshot. ApplyLayout drives windows in explorer.exe, and a destroy event that
             // lands mid-pass removes an entry, so walking the live dictionary would throw partway
-            // through and leave the remaining windows unlaid.
+            // through and leave the remaining windows unlaid. A drag whose end event was lost is
+            // released first, so that window is laid out again in this pass.
+            var sizing = _sizing;
+            if (sizing != null && !DragYieldActive(_sizingSinceTick, Environment.TickCount)) ForgetSizing(sizing);
+
             List<IntPtr> dead = null;
             foreach (var kv in new List<KeyValuePair<IntPtr, ExplorerWindow>>(_windows))
             {
@@ -268,6 +331,7 @@ namespace QuickPane.Explorer
                     if (!_windows.TryGetValue(hwnd, out win)) continue;
                     _windows.Remove(hwnd);
                     TrackAttached(win, false);
+                    ForgetSizing(win);
                     try { win.Dispose(); } catch (Exception ex) { Log.Error("prune dispose", ex); }
                     Log.Info("Explorer window pruned (missed destroy) " + hwnd.ToString("X"));
                 }
@@ -344,6 +408,7 @@ namespace QuickPane.Explorer
             try { _lifecycleHook?.Dispose(); } catch { }
             try { _locationHook?.Dispose(); } catch { }
             try { _foregroundHook?.Dispose(); } catch { }
+            try { _moveSizeHook?.Dispose(); } catch { }
             try { _deviceSink?.Dispose(); } catch { }
         }
     }

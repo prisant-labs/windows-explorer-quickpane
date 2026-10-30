@@ -224,6 +224,15 @@ namespace QuickPane.Explorer
             _contentTop = top;
             int contentH = h - top;
 
+            // During a border drag, leave Explorer's tabs where Explorer puts them and only keep the
+            // pane itself the right height. The pane is our own window, so moving it fights nothing.
+            if (Yielding)
+            {
+                if (!RectMatches(_host.Handle, 0, top, width, contentH))
+                    NM.SetWindowPos(_host.Handle, NM.HWND_TOP, 0, top, width, contentH, NM.SWP_NOACTIVATE | NM.SWP_DEFERERASE);
+                return;
+            }
+
             int sidebarX = 0, sidebarY = top, sidebarW = width, sidebarH = contentH;
             int contentX = width, contentY = top, contentW = w - width, contentH2 = contentH;
 
@@ -282,6 +291,10 @@ namespace QuickPane.Explorer
 
         public bool IsApplying { get { return _applying; } }
 
+        /// <summary>True while the user drags this window's border. The tabs are then left where Explorer
+        /// puts them until the drag ends; see ExplorerWatcher._sizing for why.</summary>
+        public volatile bool Yielding;
+
         /// <summary>
         /// Hold the content pane and sidebar in place using only Win32 calls, safe to invoke from the
         /// background enforcer thread. It reads nothing from WPF, acts only when something has drifted,
@@ -293,7 +306,7 @@ namespace QuickPane.Explorer
             var host = _hostHandle;
             if (_disposed || host == IntPtr.Zero) return;
             if (!_ready) return; // nothing is shifted or shown until the window is presented
-            if (_applying) return;
+            if (_applying || Yielding) return;
             if (!NM.IsWindow(_cabinet)) return;
 
             NM.RECT client;
