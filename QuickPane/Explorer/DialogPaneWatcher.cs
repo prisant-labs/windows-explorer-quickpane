@@ -223,12 +223,15 @@ namespace QuickPane.Explorer
                 // Navigation drives the foreign dialog with window messages; run it on the worker so
                 // a busy host app (Photoshop mid-save) can never stall our input-attached UI thread.
                 // The app and the folder are both known only here, which is what makes Recent Apps and
-                // the per-app folders possible at all.
+                // the per-app folders possible at all. Recording comes after the navigation is queued
+                // and runs on the general lane: it reads the program's version information and rewrites
+                // recentapps.txt, and on the UI thread that held up the click before it reached the
+                // navigation lane (prisant-labs/windows-explorer-quickpane#71).
                 var ownerExe = NM.ExePathOf(hwnd);
                 Action<string> nav = p =>
                 {
-                    App.RecentApps?.RecordDialog(ownerExe, p);
                     WorkQueue.PostNavigation(() => DialogNavigator.Navigate(hwnd, p));
+                    WorkQueue.Post(() => App.RecentApps?.RecordDialog(ownerExe, p));
                 };
                 ActiveDialog.App = owner;
 
