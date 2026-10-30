@@ -27,11 +27,22 @@ namespace QuickPane.Services
         private readonly SettingsStore _settings;
         private readonly Dictionary<string, int> _activeTabs = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private List<PinnedGroup> _groups = new List<PinnedGroup>();
+        private string _publishedRoot;   // the groups folder _groups was read from; null before the first scan
         private FileSystemWatcher _watcher;
         private Timer _debounce;
         private readonly object _gate = new object();
 
-        public GroupStore(SettingsStore settings) { _settings = settings; }
+        private readonly Action<string> _info;
+
+        public GroupStore(SettingsStore settings) : this(settings, null) { }
+
+        /// <summary>info receives notes such as a refused stale edit. It defaults to the log; tests pass
+        /// their own so those notes stay out of it.</summary>
+        internal GroupStore(SettingsStore settings, Action<string> info)
+        {
+            _settings = settings;
+            _info = info ?? Log.Info;
+        }
 
         public string Root { get { return _settings.ExpandedGroupsPath; } }
 
@@ -44,21 +55,42 @@ namespace QuickPane.Services
         {
             WorkQueue.Post(() =>
             {
-                ScanOnce();
-                SeedDefaultsIfEmpty();
+                // A scan discarded because the profile changed while it ran leaves the list empty, and
+                // seeding then would write the default group into the new profile's folder.
+                if (ScanOnce()) SeedDefaultsIfEmpty();
                 InstallWatcher();
                 RaiseChanged();
             });
         }
 
+        // Called on the UI thread when the groups folder setting changes, usually a profile switch, and
+        // after edits made outside the store, such as a pin's new path.
         public void Reload()
         {
+            if (DropIfRootChanged()) RaiseChanged();
             WorkQueue.Post(() =>
             {
                 InstallWatcher();
                 ScanOnce();
                 RaiseChanged();
             });
+        }
+
+        /// <summary>Drop the published groups when they were read from another groups folder, and
+        /// report whether it did. After a profile switch, panes rebuild for the new profile straight
+        /// away, and an edit on a group still showing from the old profile wrote into the old profile's
+        /// folder, and a reorder moved its folders into the new one
+        /// (prisant-labs/windows-explorer-quickpane#68). A reload of the same folder keeps them, so the
+        /// Groups section does not go blank for the length of the scan.</summary>
+        internal bool DropIfRootChanged()
+        {
+            lock (_gate)
+            {
+                if (SameRoot(_publishedRoot, Root)) return false;
+                _groups = new List<PinnedGroup>();
+                _publishedRoot = null;
+                return true;
+            }
         }
 
         // GroupsChanged always fires on the UI thread, because scans can complete on the
@@ -68,11 +100,13 @@ namespace QuickPane.Services
             WorkQueue.PostUI(() => { GroupsChanged?.Invoke(); });
         }
 
-        private void SeedDefaultsIfEmpty()
+        internal void SeedDefaultsIfEmpty()
         {
             try
             {
-                if (_groups.Count > 0) return;
+                // Only an empty list read from the current folder means an empty profile. After a switch
+                // the list is empty because it was dropped, and seeding would write into the new profile.
+                lock (_gate) { if (_groups.Count > 0 || !SameRoot(_publishedRoot, Root)) return; }
                 var group = CreateGroup("Library");
                 if (group == null) return;
 
@@ -109,19 +143,24 @@ namespace QuickPane.Services
 
         private readonly object _scanLock = new object();
 
-        public void ScanOnce()
+        /// <summary>Rescan the groups folder and publish the result. Returns true when the scan read the
+        /// whole folder and was published; false when it failed partway, or when the groups folder
+        /// changed while it ran and its result was discarded.</summary>
+        public bool ScanOnce()
         {
             // Serialize scans: they can run from the UI (mutations) and the watcher debounce
             // (worker) at the same time, and Materialize/recovery move things on disk.
-            lock (_scanLock) { ScanCore(); }
+            lock (_scanLock) { return ScanCore(); }
         }
 
-        private void ScanCore()
+        private bool ScanCore()
         {
             var result = new List<PinnedGroup>();
+            string root = null;
+            bool complete = false;
             try
             {
-                var root = Root;
+                root = Root;
                 Directory.CreateDirectory(root);
                 RecoverTemps(root);
 
@@ -175,10 +214,81 @@ namespace QuickPane.Services
 
                 result = result.OrderBy(g => g.Order)
                     .ThenBy(g => g.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+                complete = true;
             }
             catch (Exception ex) { Log.Error("ScanOnce failed", ex); }
 
-            lock (_gate) { _groups = result; }
+            return Publish(root, result) && complete;
+        }
+
+        /// <summary>Publish a scan of scannedRoot, unless the groups folder changed while it ran. Its
+        /// groups then belong to the old folder, and the scan Reload queued for the new folder
+        /// publishes instead (#68).</summary>
+        internal bool Publish(string scannedRoot, List<PinnedGroup> groups)
+        {
+            lock (_gate)
+            {
+                if (scannedRoot == null || !SameRoot(scannedRoot, Root)) return false;
+                _groups = groups;
+                _publishedRoot = scannedRoot;
+                return true;
+            }
+        }
+
+        /// <summary>True when two groups folder paths name the same folder, ignoring case and a
+        /// trailing separator.</summary>
+        internal static bool SameRoot(string a, string b)
+        {
+            if (a == null || b == null) return a == b;
+            return string.Equals(a.TrimEnd('\\', '/'), b.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>True when path is the groups folder root or lies inside it. A group, tab, or pin
+        /// whose path fails this came from another profile's snapshot, and editing it would write
+        /// into that profile's folder (#68).</summary>
+        internal static bool BelongsTo(string path, string root)
+        {
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(root)) return false;
+            var r = root.TrimEnd('\\', '/');
+            if (r.Length == 0) return false;
+            if (string.Equals(path.TrimEnd('\\', '/'), r, StringComparison.OrdinalIgnoreCase)) return true;
+            return path.StartsWith(r + "\\", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith(r + "/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>True when path is a group folder directly inside root. Groups are checked this
+        /// strictly because a group from another profile whose folder lies inside this one would pass
+        /// BelongsTo, and a reorder would move it into this profile.</summary>
+        internal static bool IsGroupIn(string path, string root)
+        {
+            if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(root)) return false;
+            try
+            {
+                var parent = Path.GetDirectoryName(path.TrimEnd('\\', '/'));
+                return parent != null && SameRoot(parent, root);
+            }
+            catch { return false; }
+        }
+
+        // Every edit that takes a group, tab, or pin checks it first. Paths that are null are skipped,
+        // so callers can pass optional arguments straight through.
+        private bool Stale(params string[] paths) { return Refuse(paths, BelongsTo); }
+        private bool StaleGroup(params string[] groupPaths) { return Refuse(groupPaths, IsGroupIn); }
+
+        /// <summary>For an edit made outside the store, such as a pin's new path: true when path is in
+        /// the current groups folder. Notes a refusal in the log, like the store's own edits.</summary>
+        internal bool IsCurrent(string path) { return path != null && !Stale(path); }
+
+        private bool Refuse(string[] paths, Func<string, string, bool> owned)
+        {
+            var root = Root;
+            foreach (var p in paths)
+            {
+                if (p == null || owned(p, root)) continue;
+                _info("ignored an edit outside the current groups folder; the profile changed under it");
+                return true;
+            }
+            return false;
         }
 
         private static void LoadPins(string tabDir, PinnedTab tab)
@@ -338,11 +448,13 @@ namespace QuickPane.Services
 
         public void DeleteGroup(PinnedGroup group)
         {
+            if (group == null || StaleGroup(group.FolderPath)) return;
             Try(() => Recycle(group.FolderPath));
         }
 
         public void RenameGroup(PinnedGroup group, string newName)
         {
+            if (group == null || StaleGroup(group.FolderPath)) return;
             // A single-tab group renames its tab; the folder label is kept in sync.
             if (group.Tabs.Count == 1)
             {
@@ -377,6 +489,9 @@ namespace QuickPane.Services
 
         public void ReorderGroups(List<PinnedGroup> ordered)
         {
+            // Sources come from the groups and the destination from Root, so a stale group here would
+            // be moved into the new profile's folder.
+            if (ordered == null || StaleGroup(ordered.Select(g => g.FolderPath).ToArray())) return;
             try
             {
                 var parent = Root;
@@ -397,6 +512,7 @@ namespace QuickPane.Services
         // Move every tab of source into dest, then delete source (drag a group onto a group).
         public void MergeGroups(PinnedGroup source, PinnedGroup dest)
         {
+            if (source != null && dest != null && StaleGroup(source.FolderPath, dest.FolderPath)) return;
             Try(() =>
             {
                 if (source == null || dest == null || ReferenceEquals(source, dest)) return;
@@ -413,6 +529,7 @@ namespace QuickPane.Services
         // ---- tabs ------------------------------------------------------------
         public PinnedTab AddTab(PinnedGroup group, string name)
         {
+            if (group == null || StaleGroup(group.FolderPath)) return null;
             name = Sanitize(name);
             if (string.IsNullOrWhiteSpace(name)) name = "Tab";
             int order = NextTabOrder(group.FolderPath);
@@ -424,6 +541,7 @@ namespace QuickPane.Services
 
         public void RenameTab(PinnedTab tab, string newName)
         {
+            if (tab == null || Stale(tab.FolderPath)) return;
             Try(() =>
             {
                 newName = Sanitize(newName);
@@ -438,6 +556,7 @@ namespace QuickPane.Services
 
         public void DeleteTab(PinnedGroup group, PinnedTab tab)
         {
+            if (group == null || tab == null || StaleGroup(group.FolderPath) || Stale(tab.FolderPath)) return;
             Try(() =>
             {
                 if (group.Tabs.Count <= 1) { DeleteGroup(group); return; } // last tab: drop the group
@@ -457,6 +576,8 @@ namespace QuickPane.Services
 
         public void ReorderTabs(PinnedGroup group, List<PinnedTab> ordered)
         {
+            if (group == null || ordered == null || StaleGroup(group.FolderPath)
+                || Stale(ordered.Select(t => t.FolderPath).ToArray())) return;
             try
             {
                 var parent = group.FolderPath;
@@ -477,6 +598,7 @@ namespace QuickPane.Services
         // Move a tab into another group as a tab (optionally at an index).
         public void MoveTabToGroup(PinnedTab tab, PinnedGroup dest, int index = -1)
         {
+            if (tab != null && dest != null && (Stale(tab.FolderPath) || StaleGroup(dest.FolderPath))) return;
             Try(() =>
             {
                 if (tab == null || dest == null) return;
@@ -490,6 +612,7 @@ namespace QuickPane.Services
         public PinnedGroup MoveTabToNewGroup(PinnedGroup source, PinnedTab tab)
         {
             PinnedGroup created = null;
+            if (tab != null && Stale(tab.FolderPath)) return null;
             Try(() =>
             {
                 if (tab == null) return;
@@ -520,7 +643,7 @@ namespace QuickPane.Services
         {
             try
             {
-                if (tab == null || targetPaths == null) return;
+                if (tab == null || targetPaths == null || Stale(tab.FolderPath)) return;
                 var dir = tab.FolderPath;
                 if (IsGroupFolder(dir)) // implicit empty tab, materialize a real subfolder
                 {
@@ -547,7 +670,7 @@ namespace QuickPane.Services
         {
             try
             {
-                if (tab == null || string.IsNullOrEmpty(targetPath)) return;
+                if (tab == null || string.IsNullOrEmpty(targetPath) || Stale(tab.FolderPath)) return;
                 var dir = tab.FolderPath;
                 if (IsGroupFolder(dir))
                 {
@@ -588,11 +711,13 @@ namespace QuickPane.Services
 
         public void RemovePin(PinnedFolder folder)
         {
+            if (folder == null || Stale(folder.LinkPath)) return;
             Try(() => { if (File.Exists(folder.LinkPath)) File.Delete(folder.LinkPath); });
         }
 
         public void RenamePin(PinnedFolder folder, string newName)
         {
+            if (folder == null || Stale(folder.LinkPath)) return;
             Try(() =>
             {
                 newName = Sanitize(newName);
@@ -606,6 +731,7 @@ namespace QuickPane.Services
 
         public void MovePinToTab(PinnedFolder folder, PinnedTab dest)
         {
+            if (folder == null || (dest != null && Stale(folder.LinkPath, dest.FolderPath))) return;
             Try(() =>
             {
                 if (dest == null) return;
@@ -634,6 +760,8 @@ namespace QuickPane.Services
 
         public void ReorderPins(PinnedTab tab, List<PinnedFolder> ordered)
         {
+            if (tab == null || ordered == null || Stale(tab.FolderPath)
+                || Stale(ordered.Select(p => p.LinkPath).ToArray())) return;
             try
             {
                 var dir = tab.FolderPath;
