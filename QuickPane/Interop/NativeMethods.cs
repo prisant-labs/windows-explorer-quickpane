@@ -365,6 +365,8 @@ namespace QuickPane.Interop
         public const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
         public const uint EVENT_OBJECT_NAMECHANGE = 0x800C;
         public const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+        public const uint EVENT_SYSTEM_MOVESIZESTART = 0x000A;
+        public const uint EVENT_SYSTEM_MOVESIZEEND = 0x000B;
 
         // ---- which program owns a window ----
         [DllImport("kernel32.dll", SetLastError = true)]
