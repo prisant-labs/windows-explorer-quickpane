@@ -801,6 +801,9 @@ namespace QuickPane.UI
                 typed = typed.Trim().Trim('"');
                 if (typed.Length == 0) return;
                 if (string.Equals(typed, pin.TargetPath, StringComparison.OrdinalIgnoreCase)) return;
+                // The prompt pumps messages, so the profile can change while it is open, and this pin
+                // would then belong to the profile just left (#68).
+                if (App.Groups == null || !App.Groups.IsCurrent(pin.LinkPath)) return;
 
                 ShellLink.Create(pin.LinkPath, typed);
                 Log.Info("pin \"" + pin.DisplayName + "\" now points at " + typed + ".");
