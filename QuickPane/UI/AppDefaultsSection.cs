@@ -19,24 +19,30 @@ namespace QuickPane.UI
         private string _app;
         private bool _expanded = true;
         private bool _wired;
+        private bool _detached;
 
         public AppDefaultsSection()
         {
             Focusable = false;
             Content = _root;
-            Unloaded += (s, e) => Detach();
+            Unloaded += (s, e) => Unwire();
         }
 
         private void Wire()
         {
-            if (_wired) return;
+            if (_wired || _detached) return;
             _wired = true;
             if (App.AppDefaults != null) App.AppDefaults.Changed += OnChanged;
         }
 
-        /// <summary>Release subscriptions. Called by the pane, because a pane hosted in an HwndSource
-        /// never raises Unloaded.</summary>
-        public void Detach()
+        /// <summary>Release this section's subscriptions for good. Called by the pane, because a pane
+        /// hosted in an HwndSource never raises Unloaded. It is final: a rebuild queued before the pane
+        /// closed used to run afterwards and subscribe the section to the static events again, which
+        /// kept it in memory and rebuilding for the life of the process
+        /// (prisant-labs/windows-explorer-quickpane#69).</summary>
+        public void Detach() { _detached = true; Unwire(); }
+
+        private void Unwire()
         {
             if (!_wired) return;
             _wired = false;
@@ -45,13 +51,14 @@ namespace QuickPane.UI
 
         private void OnChanged()
         {
-            if (_navigate == null) return;
+            if (_navigate == null || _detached) return;
             Dispatcher.BeginInvoke(new Action(() => Build(_navigate, _app)),
                 System.Windows.Threading.DispatcherPriority.Background);
         }
 
         public void Build(Action<string> navigate, string app)
         {
+            if (_detached) return;
             _navigate = navigate;
             _app = app;
             Wire();

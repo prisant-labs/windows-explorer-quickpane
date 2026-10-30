@@ -17,6 +17,7 @@ namespace QuickPane.UI
         private bool _expanded = true;
         private bool _wired;
         private bool _rebuildQueued;
+        private bool _detached;
 
         public RecentsSection()
         {
@@ -28,7 +29,7 @@ namespace QuickPane.UI
         // repaints just this section instead of every section of every sidebar.
         private void Wire()
         {
-            if (_wired) return;
+            if (_wired || _detached) return;
             _wired = true;
             if (App.Recents != null) App.Recents.RecentsChanged += QueueRebuild;
             PathStatus.Changed += QueueRebuild;
@@ -42,23 +43,27 @@ namespace QuickPane.UI
             PathStatus.Changed -= QueueRebuild;
         }
 
-        /// <summary>Release this section's subscriptions. Called by the pane, because a pane hosted in
-        /// an HwndSource never raises Unloaded.</summary>
-        public void Detach() { Unwire(); }
+        /// <summary>Release this section's subscriptions for good. Called by the pane, because a pane
+        /// hosted in an HwndSource never raises Unloaded. It is final: a rebuild queued before the pane
+        /// closed used to run afterwards and subscribe the section to the static events again, which
+        /// kept it in memory and rebuilding for the life of the process
+        /// (prisant-labs/windows-explorer-quickpane#69).</summary>
+        public void Detach() { _detached = true; Unwire(); }
 
         private void QueueRebuild()
         {
-            if (_rebuildQueued) return;
+            if (_rebuildQueued || _detached) return;
             _rebuildQueued = true;
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 _rebuildQueued = false;
-                if (_navigate != null) Build(_navigate);
+                if (_navigate != null && !_detached) Build(_navigate);
             }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         public void Build(Action<string> navigate)
         {
+            if (_detached) return;
             _navigate = navigate;
             Wire();
             Root.Children.Clear();
