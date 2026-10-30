@@ -224,10 +224,13 @@ namespace QuickPane.Explorer
             _contentTop = top;
             int contentH = h - top;
 
-            // During a border drag, leave Explorer's tabs where Explorer puts them and only keep the
-            // pane itself the right height. The pane is our own window, so moving it fights nothing.
+            // During a drag, leave Explorer's tabs where Explorer puts them and only keep the pane itself
+            // the right size, hidden or not. The pane is our own window, so moving it fights nothing. A
+            // resize the cursor test did not recognise (a keyboard resize) hides the pane at its first
+            // size change.
             if (Yielding)
             {
+                if (!_paneHiddenForDrag && (w != _dragStartW || h != _dragStartH)) HidePaneForDrag();
                 if (!RectMatches(_host.Handle, 0, top, width, contentH))
                     NM.SetWindowPos(_host.Handle, NM.HWND_TOP, 0, top, width, contentH, NM.SWP_NOACTIVATE | NM.SWP_DEFERERASE);
                 return;
@@ -291,9 +294,41 @@ namespace QuickPane.Explorer
 
         public bool IsApplying { get { return _applying; } }
 
-        /// <summary>True while the user drags this window's border. The tabs are then left where Explorer
-        /// puts them until the drag ends; see ExplorerWatcher._sizing for why.</summary>
+        /// <summary>True while the user drags this window. The tabs are then left where Explorer puts
+        /// them until the drag ends; see ExplorerWatcher._sizing for why.</summary>
         public volatile bool Yielding;
+
+        private bool _paneHiddenForDrag;      // UI thread only
+        private int _dragStartW, _dragStartH; // client size when the drag began
+
+        /// <summary>A drag of this window began. For a resize, the pane hides, so Explorer's own layout,
+        /// its tree included, shows whole and steady until the drag ends (#102). For a move it stays up,
+        /// because a move never changes the layout.</summary>
+        public void BeginDrag(bool resizing)
+        {
+            NM.RECT client;
+            if (NM.GetClientRect(_cabinet, out client)) { _dragStartW = client.Width; _dragStartH = client.Height; }
+            Yielding = true;
+            if (resizing) HidePaneForDrag();
+        }
+
+        /// <summary>The drag ended, or it is being abandoned: reapply the split, then show the pane.
+        /// Showing it after the layout pass means it reappears beside Explorer's tree rather than over it.</summary>
+        public void EndDrag()
+        {
+            Yielding = false;
+            ApplyLayout();
+            if (!_paneHiddenForDrag) return;
+            _paneHiddenForDrag = false;
+            if (_host != null && _ready && !_disposed) NM.ShowWindow(_host.Handle, NM.SW_SHOWNA);
+        }
+
+        private void HidePaneForDrag()
+        {
+            if (_host == null || !_ready || _paneHiddenForDrag) return;
+            _paneHiddenForDrag = true;
+            NM.ShowWindow(_host.Handle, NM.SW_HIDE);
+        }
 
         /// <summary>
         /// Hold the content pane and sidebar in place using only Win32 calls, safe to invoke from the
