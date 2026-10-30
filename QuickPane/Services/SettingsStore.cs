@@ -81,8 +81,10 @@ namespace QuickPane.Services
                 Current.LoadActiveToTop();
             }
 
-            // Make sure the groups directory exists so the first run is not empty.
-            try { Directory.CreateDirectory(ExpandedGroupsPath); } catch (Exception ex) { Log.Error("create groups dir", ex); }
+            // The groups folder is not created here. Load runs on the UI thread before the tray icon
+            // exists, and a groups folder on a share that does not answer held startup for the network
+            // timeout. GroupStore creates it on the worker when it scans
+            // (prisant-labs/windows-explorer-quickpane#70).
 
             if (!File.Exists(_file)) Save(); // materialize defaults
         }
