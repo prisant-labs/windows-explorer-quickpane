@@ -300,13 +300,17 @@
     <Compile Include="UI\ComputerSection.xaml.cs">
       <DependentUpon>ComputerSection.xaml</DependentUpon>
     </Compile>
-    <Page Include="UI\SettingsPanel.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Compile Include="UI\SettingsPanel.xaml.cs">
-      <DependentUpon>SettingsPanel.xaml</DependentUpon>
-    </Compile>
+    <Compile Include="UI\Settings\SettingsWindow.cs" />
+    <Compile Include="UI\Settings\SettingsCards.cs" />
+    <Compile Include="UI\Settings\SettingsSearch.cs" />
+    <Compile Include="UI\Settings\Pages\GroupsPage.cs" />
+    <Compile Include="UI\Settings\Pages\PanePage.cs" />
+    <Compile Include="UI\Settings\Pages\SectionsPage.cs" />
+    <Compile Include="UI\Settings\Pages\RecentAppsPage.cs" />
+    <Compile Include="UI\Settings\Pages\KeyboardPage.cs" />
+    <Compile Include="UI\Settings\Pages\SshPage.cs" />
+    <Compile Include="UI\Settings\Pages\BackupPage.cs" />
+    <Compile Include="UI\Settings\Pages\AboutPage.cs" />
     <Page Include="UI\GroupPickerWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

@@ -388,28 +388,12 @@ namespace QuickPane
                 return;
             }
 
-            var panel = new SettingsPanel();
-            panel.Bind(Settings, Groups);
-            panel.CloseRequested += (s, a) => _settingsWindow?.Close();
-
-            _settingsWindow = new Window
-            {
-                Title = "QuickPane Settings",
-                Width = 940,
-                Height = 620,
-                MinWidth = 420,
-                MinHeight = 420,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.CanResize,
-                ShowInTaskbar = true,
-            };
-            // Merges the ported Microsoft Fluent styles (QuickPane/Themes/Fluent/NOTICE.md) into
-            // THIS window's own Resources, before Content is set so the implicit styles are
-            // already in scope when the panel enters the tree. Never merge into
-            // Application.Current.Resources: ThemeService does that for QuickPane's own theme,
-            // and every Explorer pane inherits whatever lives there.
-            FluentThemeService.Attach(_settingsWindow, Theme);
-            _settingsWindow.Content = panel;
+            // SettingsWindow (QuickPane/UI/Settings/SettingsWindow.cs, #90) replaces SettingsPanel
+            // and its tab strip with the Windows 11 Settings app layout. It merges the ported
+            // Fluent styles into its own Resources itself (never Application.Current.Resources:
+            // every Explorer pane inherits whatever lives there), so this call does not repeat
+            // FluentThemeService.Attach the way the old window's host code did.
+            _settingsWindow = new QuickPane.UI.Settings.SettingsWindow(Settings, Groups, Theme, _tray?.Icon);
             _settingsWindow.Closed += (s, a) => _settingsWindow = null;
             Theme.AttachWindow(_settingsWindow);
             _settingsWindow.Show();
