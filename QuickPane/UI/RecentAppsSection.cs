@@ -21,19 +21,20 @@ namespace QuickPane.UI
         private bool _expanded = true;
         private bool _wired;
         private bool _pendingRebuild;
+        private bool _detached;
 
         public RecentAppsSection()
         {
             Focusable = false;
             Content = _root;
-            Unloaded += (s, e) => Detach();
+            Unloaded += (s, e) => Unwire();
 
             // This list reorders itself every time another program comes to the front. Rebuilding it
             // under the pointer would move a row out from under a click already in progress, so a
             // rebuild that arrives while the pointer is here waits until the pointer leaves.
             MouseLeave += (s, e) =>
             {
-                if (!_pendingRebuild || _navigate == null) return;
+                if (!_pendingRebuild || _navigate == null || _detached) return;
                 _pendingRebuild = false;
                 Build(_navigate);
             };
@@ -41,16 +42,21 @@ namespace QuickPane.UI
 
         private void Wire()
         {
-            if (_wired) return;
+            if (_wired || _detached) return;
             _wired = true;
             if (App.RecentApps != null) App.RecentApps.Changed += OnChanged;
             AppShortcuts.Loaded += OnIconsLoaded;   // icons improve once the Start menu has been read
             AppShortcuts.BeginLoad();
         }
 
-        /// <summary>Release subscriptions. Called by the pane, because a pane hosted in an HwndSource
-        /// never raises Unloaded.</summary>
-        public void Detach()
+        /// <summary>Release this section's subscriptions for good. Called by the pane, because a pane
+        /// hosted in an HwndSource never raises Unloaded. It is final: a rebuild queued before the pane
+        /// closed used to run afterwards and subscribe the section to the static events again, which
+        /// kept it in memory and rebuilding for the life of the process
+        /// (prisant-labs/windows-explorer-quickpane#69).</summary>
+        public void Detach() { _detached = true; Unwire(); }
+
+        private void Unwire()
         {
             if (!_wired) return;
             _wired = false;
@@ -65,9 +71,10 @@ namespace QuickPane.UI
         /// never moves out from under a click already in progress.</param>
         private void OnChanged(bool asked)
         {
-            if (_navigate == null) return;
+            if (_navigate == null || _detached) return;
             Dispatcher.BeginInvoke(new Action(() =>
             {
+                if (_detached) return;
                 if (!asked && IsMouseOver) { _pendingRebuild = true; return; }
                 _pendingRebuild = false;
                 Build(_navigate);
@@ -76,6 +83,7 @@ namespace QuickPane.UI
 
         public void Build(Action<string> navigate)
         {
+            if (_detached) return;
             _navigate = navigate;
             Wire();
             _root.Children.Clear();

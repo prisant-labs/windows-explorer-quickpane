@@ -79,7 +79,7 @@ namespace QuickPane.UI
 
         private void Wire()
         {
-            if (_wired) return;
+            if (_wired || _detached) return;
             _wired = true;
             if (App.Theme != null) App.Theme.ThemeChanged += OnDataChanged;
             if (App.Settings != null) App.Settings.Changed += OnSettingsChanged;
@@ -196,7 +196,7 @@ namespace QuickPane.UI
 
         private void QueueBuild()
         {
-            if (_rebuildQueued) return;
+            if (_rebuildQueued || _detached) return;
             _rebuildQueued = true;
             Dispatcher.BeginInvoke(new Action(() =>
             {
@@ -205,9 +205,13 @@ namespace QuickPane.UI
             }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
+        // A detached pane builds nothing: new sections would subscribe themselves and resurrect the
+        // pane. The old sections are detached before the panel drops them, because clearing raises
+        // Unloaded only on a pane that was loaded (#69).
         private void BuildSections()
         {
-            if (App.Settings == null) return;
+            if (App.Settings == null || _detached) return;
+            DetachSections();
             SectionsPanel.Children.Clear();
 
             var ordered = App.Settings.Current.Sections
