@@ -23,6 +23,7 @@ namespace QuickPane.Tests
             public readonly List<string> Errors = new List<string>();
             public uint Thread = 1;
             public bool Fail;
+            public bool FailUnhook;
 
             // Errors are collected here rather than written to the real log.
             public WinEventHub Hub()
@@ -34,7 +35,7 @@ namespace QuickPane.Tests
                         Installed.Add(proc);
                         return new IntPtr(Installed.Count);
                     },
-                    handle => Removed.Add(handle),
+                    handle => { Removed.Add(handle); return !FailUnhook; },
                     () => Thread,
                     (message, ex) => Errors.Add(message));
             }
@@ -131,6 +132,34 @@ namespace QuickPane.Tests
             hub.Attach(Location, Location, (e, h, o, c, t) => { });
 
             Assert.That(native.Installed.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void Detach_UnhookFails_IsReported()
+        {
+            var native = new FakeNative { FailUnhook = true };
+            var hub = native.Hub();
+            var token = hub.Attach(Location, Location, (e, h, o, c, t) => { });
+
+            hub.Detach(token);
+
+            Assert.That(native.Removed, Is.EqualTo(new[] { new IntPtr(1) }));
+            Assert.That(native.Errors, Is.EqualTo(new[] { "UnhookWinEvent failed for range 800B-800B" }));
+        }
+
+        [Test]
+        public void Detach_FromAnotherThread_IsReportedAndStillUnhooks()
+        {
+            // Windows removes a hook only on its own thread, so this unhook would fail for real.
+            var native = new FakeNative();
+            var hub = native.Hub();
+            var token = hub.Attach(Location, Location, (e, h, o, c, t) => { });
+            native.Thread = 2;
+
+            hub.Detach(token);
+
+            Assert.That(native.Errors, Is.EqualTo(new[] { "WinEvent hook for range 800B-800B detached on thread 2 but installed on thread 1" }));
+            Assert.That(native.Removed.Count, Is.EqualTo(1));
         }
 
         [Test]

@@ -63,7 +63,7 @@ namespace QuickPane.Interop
         internal static readonly WinEventHub Default = new WinEventHub(
             (min, max, proc) => NativeMethods.SetWinEventHook(min, max, IntPtr.Zero, proc, 0, 0,
                 NativeMethods.WINEVENT_OUTOFCONTEXT | NativeMethods.WINEVENT_SKIPOWNPROCESS),
-            handle => NativeMethods.UnhookWinEvent(handle),
+            NativeMethods.UnhookWinEvent,
             NativeMethods.GetCurrentThreadId);
 
         private sealed class Registration
@@ -81,7 +81,7 @@ namespace QuickPane.Interop
         }
 
         private readonly Func<uint, uint, NativeMethods.WinEventDelegate, IntPtr> _install;
-        private readonly Action<IntPtr> _uninstall;
+        private readonly Func<IntPtr, bool> _uninstall;
         private readonly Func<uint> _currentThread;
         private readonly Action<string, Exception> _onError;
         private readonly List<Registration> _registrations = new List<Registration>();
@@ -90,7 +90,7 @@ namespace QuickPane.Interop
         /// <summary>onError receives failures, with a null exception for a hook that would not install.
         /// It defaults to the log; tests pass their own so expected failures stay out of it.</summary>
         internal WinEventHub(Func<uint, uint, NativeMethods.WinEventDelegate, IntPtr> install,
-            Action<IntPtr> uninstall, Func<uint> currentThread, Action<string, Exception> onError = null)
+            Func<IntPtr, bool> uninstall, Func<uint> currentThread, Action<string, Exception> onError = null)
         {
             _install = install;
             _uninstall = uninstall;
@@ -138,7 +138,12 @@ namespace QuickPane.Interop
             }
         }
 
-        /// <summary>Unsubscribe. Removes the native hook when its last sink leaves.</summary>
+        /// <summary>Unsubscribe. Removes the native hook when its last sink leaves.
+        ///
+        /// Windows removes a hook only on the thread that installed it, and every caller today detaches
+        /// on the UI thread. A detach from another thread, or an unhook that fails, is reported rather
+        /// than dropped silently, because either would leave a native hook delivering events with no
+        /// record of it here (prisant-labs/windows-explorer-quickpane#73). The unhook is still tried.</summary>
         public void Detach(object token)
         {
             var t = token as Token;
@@ -148,15 +153,25 @@ namespace QuickPane.Interop
                 var reg = t.Registration;
                 int i = Array.IndexOf(reg.Sinks, t.Sink);
                 if (i < 0) return;
+                uint thread = _currentThread();
+                if (thread != reg.Thread)
+                    _onError("WinEvent hook for range " + Range(reg) + " detached on thread " + thread
+                        + " but installed on thread " + reg.Thread, null);
                 var sinks = new Sink[reg.Sinks.Length - 1];
                 Array.Copy(reg.Sinks, 0, sinks, 0, i);
                 Array.Copy(reg.Sinks, i + 1, sinks, i, reg.Sinks.Length - i - 1);
                 reg.Sinks = sinks;
                 if (sinks.Length > 0) return;
                 _registrations.Remove(reg);
-                _uninstall(reg.Handle);
+                if (!_uninstall(reg.Handle))
+                    _onError("UnhookWinEvent failed for range " + Range(reg), null);
                 reg.Handle = IntPtr.Zero;
             }
+        }
+
+        private static string Range(Registration reg)
+        {
+            return reg.Min.ToString("X") + "-" + reg.Max.ToString("X");
         }
 
         private void Deliver(Registration reg, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread)
