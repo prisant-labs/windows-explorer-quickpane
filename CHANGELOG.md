@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.10.0.10] - 2026-10-30
+
+### Fixed
+- Dragging the border of an Explorer window that has the pane no longer makes the window flicker. Explorer puts its content back at full width on every step of a drag, and the pane moved it back each time, so Explorer's own navigation tree and the file list jumped under the pane and back about a hundred times in a two-second drag. The pane now leaves the window to Explorer until the mouse button is released, and then restores the layout once. During the drag, Explorer's navigation tree sits under the pane, and it returns beside the pane on release ([#99](https://github.com/prisant-labs/windows-explorer-quickpane/issues/99)).
+
 ## [3.10.0.9] - 2026-10-29
 
 These fixes come from an independent review of 3.10.0.8.
