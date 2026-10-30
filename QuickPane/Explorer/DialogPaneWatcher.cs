@@ -21,7 +21,7 @@ namespace QuickPane.Explorer
     {
         private readonly Dictionary<IntPtr, FollowerPane> _beside = new Dictionary<IntPtr, FollowerPane>();
         private readonly Dictionary<IntPtr, DialogInsidePane> _inside = new Dictionary<IntPtr, DialogInsidePane>();
-        private WinEventHook _life, _loc, _fg;
+        private WinEventHook _life, _loc, _fg, _moveSize;
         private DispatcherTimer _sweep;
         private string _mode = "inside";
 
@@ -80,6 +80,9 @@ namespace QuickPane.Explorer
             _loc.Event += OnLoc; _loc.Install();
             _fg = new WinEventHook(NM.EVENT_SYSTEM_FOREGROUND, NM.EVENT_SYSTEM_FOREGROUND);
             _fg.Event += OnFg; _fg.Install();
+            // A border drag on an inside dialog: the pane steps aside until release (#103).
+            _moveSize = new WinEventHook(NM.EVENT_SYSTEM_MOVESIZESTART, NM.EVENT_SYSTEM_MOVESIZEEND);
+            _moveSize.Event += OnMoveSize; _moveSize.Install();
 
             // A dialog's controls are not all present at creation, so a light sweep catches the ones the
             // create/show events miss, reapplies inside-mode layout, and prunes closed dialogs. The
@@ -173,6 +176,17 @@ namespace QuickPane.Explorer
             else if (_beside.TryGetValue(hwnd, out var pane)) PositionBeside(hwnd, pane);
         }
 
+        // A title-bar move needs nothing, because the controls move with the dialog, so only a press on
+        // the border starts the inside pane's resize handling. A keyboard resize is not recognised; it
+        // changes the width under the pane, which demotes that one dialog and nothing more.
+        private void OnMoveSize(uint evt, IntPtr hwnd, int idObject, int idChild, uint thread)
+        {
+            if (idObject != NM.OBJID_WINDOW || !_inside.TryGetValue(hwnd, out var win)) return;
+            if (evt == NM.EVENT_SYSTEM_MOVESIZESTART) { if (ResizeBorder.CursorOn(hwnd)) win.BeginUserResize(); return; }
+            win.EndUserResize();
+            if (win.Failed) DemoteToBeside(hwnd);
+        }
+
         // Attach a file dialog immediately when it gains focus. Log an unmatched #32770 once (with its
         // child tree) so any unfamiliar picker is easy to diagnose, without flooding the log.
         private void OnFg(uint evt, IntPtr hwnd, int idObject, int idChild, uint thread)
@@ -254,6 +268,16 @@ namespace QuickPane.Explorer
                 {
                     var win = new DialogInsidePane(hwnd, nav, owner);
                     if (win.TryAttach()) _inside[hwnd] = win;
+                    else if (win.Failed)
+                    {
+                        // Too wide to widen on this screen. The log said it went beside, but nothing
+                        // handed it over, so the dialog had no pane and the sweep retried, and logged,
+                        // every second. The follower moves the dialog aside instead of reshaping it.
+                        win.Dispose();
+                        var pane = new FollowerPane(hwnd, nav, owner);
+                        _beside[hwnd] = pane;
+                        PositionBeside(hwnd, pane);
+                    }
                     else win.Dispose(); // controls not ready yet; the sweep retries
                 }
             }
@@ -374,18 +398,28 @@ namespace QuickPane.Explorer
 
         private void DemoteToBeside(IntPtr hwnd)
         {
-            if (_inside.TryGetValue(hwnd, out var win)) { _inside.Remove(hwnd); try { win.Dispose(); } catch { } }
-            // Remember the app so its later dialogs skip the inside attempt entirely.
+            bool fights = false;
+            if (_inside.TryGetValue(hwnd, out var win))
+            {
+                fights = win.AppFightsLayout;
+                _inside.Remove(hwnd);
+                try { win.Dispose(); } catch { }
+            }
+            // Remember the app, so its later dialogs skip the inside attempt entirely, only when this
+            // dialog moved its controls back over the pane. Remembering it for a width change put Edge
+            // on the list for the session after one resize of its Save dialog (#103).
             var owner = DialogNavigator.Owner(hwnd);
-            if (!string.IsNullOrEmpty(owner) && owner != "unknown") _besideApps.Add(owner);
+            if (fights && !string.IsNullOrEmpty(owner) && owner != "unknown") _besideApps.Add(owner);
             if (!NM.IsWindow(hwnd) || _beside.ContainsKey(hwnd)) return;
             var pane = new FollowerPane(hwnd, p => WorkQueue.PostNavigation(() => DialogNavigator.Navigate(hwnd, p)));
             _beside[hwnd] = pane;
             PositionBeside(hwnd, pane);
-            Log.Event("glitch", "the " + owner + " dialog " + hwnd.ToString("X") +
-                " ran its own layout over the inside pane, so it was handed to the " +
-                "beside follower and that app's later dialogs skip the inside attempt for the rest of " +
-                "this session.");
+            Log.Event("glitch", fights
+                ? "the " + owner + " dialog " + hwnd.ToString("X") + " ran its own layout over the inside " +
+                  "pane, so it was handed to the beside follower and that app's later dialogs skip the " +
+                  "inside attempt for the rest of this session."
+                : "the " + owner + " dialog " + hwnd.ToString("X") + " changed width under the inside pane, " +
+                  "so this dialog alone was handed to the beside follower.");
         }
 
         private static string DumpChildren(IntPtr root)
@@ -415,6 +449,7 @@ namespace QuickPane.Explorer
             try { _life?.Dispose(); } catch { }
             try { _loc?.Dispose(); } catch { }
             try { _fg?.Dispose(); } catch { }
+            try { _moveSize?.Dispose(); } catch { }
             TeardownAll();
         }
     }

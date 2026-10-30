@@ -40,6 +40,20 @@ namespace QuickPane.Explorer
         /// drop this dialog to the non-invasive beside follower instead.</summary>
         public bool Failed { get; private set; }
 
+        /// <summary>Set with Failed only when the dialog moved its controls back over the pane at an
+        /// unchanged size, which is the app running its own layout (Photoshop). Only then should the app's
+        /// later dialogs skip the inside attempt. A width change alone, which a user resize, a snap, or the
+        /// dialog itself can make, says nothing about the app (#103).</summary>
+        public bool AppFightsLayout { get; private set; }
+
+        private int _ownResizeRefits;    // times the pane was refitted after the dialog resized itself
+        private const int MaxOwnResizeRefits = 3;
+        private const int MinContentPx = 600; // at 96 DPI; narrower and the pane is fitted by widening
+        private int _keepWinW;           // outer width teardown leaves, once the pane was fitted inside it
+        private bool _userSizing;        // the user is dragging the dialog's border; the pane is hidden
+        private int _userSizingSince;
+        private const int UserSizingCapMs = 30000; // a lost end event cannot hide the pane for good
+
         public bool Attached { get { return _attached; } }
 
         /// <summary>The hosted pane window, for moving keyboard focus into it.</summary>
@@ -245,6 +259,13 @@ namespace QuickPane.Explorer
         public void Relayout()
         {
             if (!_attached || _disposed || _applying || _host == null || !NM.IsWindow(_dlg)) return;
+            if (_userSizing)
+            {
+                // The dialog lays itself out while its border is dragged; EndUserResize fits the pane
+                // back in on release. The sweep ends a drag whose end event never arrived.
+                if (unchecked(Environment.TickCount - _userSizingSince) > UserSizingCapMs) EndUserResize();
+                return;
+            }
 
             NM.RECT wr;
             if (!NM.GetWindowRect(_dlg, out wr)) return;
@@ -286,12 +307,28 @@ namespace QuickPane.Explorer
                 // back to them is what drew the buttons twice and left the bottom row misplaced until
                 // the dialog was resized again. Only a narrower dialog used to be caught here.
                 bool widthOff = Math.Abs(wr.Width - (_origWinW + _width)) > 4;
-                if ((total > 0 && off > total / 2) || widthOff)
+                bool controlsBack = total > 0 && off > total / 2;
+
+                // A dialog that sets its own size after it appears (the common Save dialog opens at a
+                // default size and applies the one it remembers a moment later, by which time the pane
+                // is attached) has laid its controls out for that new size. Fit the pane to it, as at
+                // attach, rather than giving up: giving up here was why the pane went beside on dialogs
+                // nobody had touched (#103). A dialog that keeps doing it is handed over below.
+                if (widthOff && _ownResizeRefits < MaxOwnResizeRefits)
+                {
+                    _ownResizeRefits++;
+                    if (RefitAfterOwnResize(wr)) return;
+                }
+
+                if (controlsBack || widthOff)
                 {
                     // Give up on the first pass and hand the dialog to the beside follower, which never
                     // touches its controls. Retrying holds the dialog in a broken state for as long as
-                    // the fight lasts; the follower costs a pane position and nothing else.
+                    // the fight lasts; the follower costs a pane position and nothing else. A dialog
+                    // that changed width moves its controls as a matter of course, so only controls
+                    // moved back at the same width count against the app.
                     Failed = true;
+                    AppFightsLayout = controlsBack && !widthOff;
                     Restore();
                     return;
                 }
@@ -307,6 +344,7 @@ namespace QuickPane.Explorer
             if (++_relayoutCount > 12)
             {
                 Failed = true;
+                AppFightsLayout = true;
                 Restore();
                 Log.Event("glitch", "the " + QuickPane.Interop.DialogNavigator.Owner(_dlg) + " dialog " +
                     _dlg.ToString("X") + " moved its controls back " + _relayoutCount +
@@ -324,6 +362,153 @@ namespace QuickPane.Explorer
                     NM.SWP_NOACTIVATE);
 
             Repaint();
+        }
+
+        /// <summary>The dialog changed its own size, which the common Save dialog does just after it
+        /// appears, to apply the size it recorded when it last closed. The pane is fitted inside that
+        /// width rather than widening the dialog again: the shell records the size before the restore on
+        /// hide can take the pane's width back off, so widening here made every Save As reopen one pane
+        /// wider than the last. Only a dialog too narrow to give up the pane's width is widened, and the
+        /// size it then records leaves room for the pane the next time. False hands the dialog over.</summary>
+        private bool RefitAfterOwnResize(NM.RECT wr)
+        {
+            int minContent = MinContentPx * NM.DpiForWindow(_dlg) / 96;
+            if (wr.Width - _width >= minContent && FitInside(wr))
+            {
+                Log.Info("dialog " + _dlg.ToString("X") + " resized itself to " + wr.Width + "x" + wr.Height +
+                    "; the inside pane was fitted within that width.");
+                return true;
+            }
+            return WidenAround(wr);
+        }
+
+        /// <summary>Make room for the pane without changing the dialog's outer size. Shrinking the dialog
+        /// by the pane width makes it lay its controls out for the space beside the pane; those positions
+        /// become the originals, and the dialog is widened back and the controls shifted, as at attach.
+        /// False, with the dialog left at its size, when the dialog will not shrink that far.</summary>
+        private bool FitInside(NM.RECT wr)
+        {
+            int fullW = wr.Width, h = wr.Height, inner = fullW - _width;
+            const uint keepPlace = NM.SWP_NOMOVE | NM.SWP_NOZORDER | NM.SWP_NOACTIVATE;
+
+            _applying = true;
+            try
+            {
+                NM.SetWindowPos(_dlg, IntPtr.Zero, 0, 0, inner, h, keepPlace);
+                NM.RECT sr;
+                if (!NM.GetWindowRect(_dlg, out sr) || Math.Abs(sr.Width - inner) > 4)
+                {
+                    NM.SetWindowPos(_dlg, IntPtr.Zero, 0, 0, fullW, h, keepPlace);
+                    return false;
+                }
+                CaptureChildren();
+                NM.SetWindowPos(_dlg, IntPtr.Zero, 0, 0, fullW, h, keepPlace);
+                if (_orig.Count == 0) return false;
+                ShiftChildren();
+            }
+            finally { _applying = false; }
+
+            // The originals describe the dialog at the inner width; teardown returns it to the full width
+            // it chose, so the size it records is the size it reopens at.
+            _origWinW = inner; _origWinH = h; _origWinX = wr.Left; _origWinY = wr.Top;
+            _keepWinW = fullW; _moved = false;
+            _lastW = fullW; _lastH = h;
+            NM.RECT client;
+            if (NM.GetClientRect(_dlg, out client))
+                NM.SetWindowPos(_host.Handle, NM.HWND_TOP, 0, 0, _width, client.Height, NM.SWP_NOACTIVATE);
+            Repaint();
+            return true;
+        }
+
+        /// <summary>Take the dialog's current size and layout as the content size, then widen it by the
+        /// pane and shift the controls, as TryAttach does. False when the wider dialog would not fit the
+        /// work area or its controls cannot be read.</summary>
+        private bool WidenAround(NM.RECT wr)
+        {
+            var wa = NM.WorkAreaFor(_dlg);
+            int newW = wr.Width + _width;
+            if (wa.Width <= 0 || newW > wa.Width) return false;
+
+            _origWinW = wr.Width; _origWinH = wr.Height; _origWinX = wr.Left; _origWinY = wr.Top;
+            _keepWinW = 0;
+
+            // A control the dialog laid out again for its new size takes that place as its original.
+            // One it left alone, often a hidden one, still sits where the last shift put it and keeps
+            // the original recorded before, or the next shift would move it twice.
+            foreach (var h in new List<IntPtr>(_orig.Keys))
+            {
+                NM.RECT cr;
+                if (!NM.IsWindow(h) || !NM.GetWindowRect(h, out cr)) { _orig.Remove(h); continue; }
+                var pt = new NM.POINT { X = cr.Left, Y = cr.Top };
+                NM.ScreenToClient(_dlg, ref pt);
+                var o = _orig[h];
+                bool stillShifted = Math.Abs(pt.X - (o.Left + _width)) <= 3 && Math.Abs(pt.Y - o.Top) <= 3 &&
+                                    Math.Abs(cr.Width - o.Width) <= 2 && Math.Abs(cr.Height - o.Height) <= 2;
+                if (!stillShifted)
+                    _orig[h] = new NM.RECT { Left = pt.X, Top = pt.Y, Right = pt.X + cr.Width, Bottom = pt.Y + cr.Height };
+            }
+            CaptureNewChildren();
+            if (_orig.Count == 0) return false;
+
+            int left = wr.Left;
+            if (left + newW > wa.Right) left = wa.Right - newW;
+            if (left < wa.Left) left = wa.Left;
+            _moved = left != wr.Left;
+
+            _applying = true;
+            try
+            {
+                NM.SetWindowPos(_dlg, IntPtr.Zero, left, wr.Top, newW, wr.Height, NM.SWP_NOZORDER | NM.SWP_NOACTIVATE);
+                ShiftChildren();
+            }
+            finally { _applying = false; }
+
+            _lastW = newW; _lastH = wr.Height;
+            NM.RECT client;
+            if (NM.GetClientRect(_dlg, out client))
+                NM.SetWindowPos(_host.Handle, NM.HWND_TOP, 0, 0, _width, client.Height, NM.SWP_NOACTIVATE);
+            Repaint();
+            Log.Info("dialog " + _dlg.ToString("X") + " resized itself to " + wr.Width + "x" + wr.Height +
+                ", too narrow to share; it was widened for the inside pane.");
+            return true;
+        }
+
+        /// <summary>The user started dragging the dialog's border. The dialog lays its controls out at
+        /// every step, which used to read as the dialog fighting the shift and sent the dialog, and every
+        /// later dialog of its app, beside (#103). The pane hides and the dialog is left to lay itself out
+        /// until the drag ends, as for Explorer windows (#102).</summary>
+        public void BeginUserResize()
+        {
+            if (!_attached || _disposed || _host == null || _userSizing) return;
+            _userSizing = true;
+            _userSizingSince = Environment.TickCount;
+            NM.ShowWindow(_host.Handle, NM.SW_HIDE);
+        }
+
+        /// <summary>The border drag ended: fit the pane back in at the size the user chose, which is also
+        /// the size the dialog records and reopens at. A dialog whose minimum width will not leave room
+        /// for the pane goes beside, alone.</summary>
+        public void EndUserResize()
+        {
+            if (!_userSizing) return;
+            _userSizing = false;
+            if (!_attached || _disposed || _host == null || !NM.IsWindow(_dlg)) return;
+
+            NM.RECT wr;
+            if (!NM.GetWindowRect(_dlg, out wr)) return;
+            // The dialog laid itself out at this size during the drag, so nothing captured before it
+            // describes where its controls belong any longer. If the pane cannot fit, teardown leaves the
+            // dialog where the user put it rather than at the size from before the drag.
+            _orig.Clear();
+            _origWinW = wr.Width; _origWinH = wr.Height; _origWinX = wr.Left; _origWinY = wr.Top;
+            _keepWinW = 0; _moved = false;
+            if (!FitInside(wr))
+            {
+                Failed = true; // too narrow to share with the pane; AppFightsLayout stays false
+                return;
+            }
+            _attachTick = Environment.TickCount; // controls placed late settle as they do after attach
+            NM.ShowWindow(_host.Handle, NM.SW_SHOWNA);
         }
 
         // Put every control back, return the dialog to its original size, and remove the pane host. Used
@@ -345,6 +530,11 @@ namespace QuickPane.Explorer
                     }
                     uint flags = NM.SWP_NOZORDER | NM.SWP_NOACTIVATE | (_moved ? 0 : NM.SWP_NOMOVE);
                     NM.SetWindowPos(_dlg, IntPtr.Zero, _origWinX, _origWinY, _origWinW, _origWinH, flags);
+                    // A pane fitted inside the dialog's own width leaves it at that width, laid out
+                    // afresh by the size change, so the size the shell records is the one it opened at.
+                    if (_keepWinW > 0)
+                        NM.SetWindowPos(_dlg, IntPtr.Zero, 0, 0, _keepWinW, _origWinH,
+                            NM.SWP_NOMOVE | NM.SWP_NOZORDER | NM.SWP_NOACTIVATE);
                 }
             }
             catch (Exception ex) { Log.Error("DialogInsidePane restore", ex); }
