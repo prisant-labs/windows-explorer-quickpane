@@ -11,8 +11,8 @@ namespace QuickPane.Tests
     /// Exercises SettingsStore entirely inside a throwaway temp directory, using the internal
     /// (string dir) constructor added for tests. Never uses the public default constructor, which
     /// hard-codes the real %APPDATA%\QuickPane. GroupsPath and the one profile's GroupsPath both point
-    /// inside the temp dir, because Load() creates that folder and LoadActiveToTop() copies the active
-    /// profile's path over the top-level one.
+    /// inside the temp dir, because LoadActiveToTop() copies the active profile's path over the
+    /// top-level one and a later GroupStore scan would create that folder.
     /// </summary>
     [TestFixture]
     public class SettingsStoreTests
@@ -46,7 +46,9 @@ namespace QuickPane.Tests
                 store.Load();
 
                 Assert.That(store.Current.GroupsPath, Is.EqualTo(groupsPath));
-                Assert.That(Directory.Exists(groupsPath), Is.True); // Load() materializes it
+                // Load runs on the UI thread, so it must not touch the groups folder, which can be on a
+                // network share (#70). GroupStore creates it on the worker.
+                Assert.That(Directory.Exists(groupsPath), Is.False);
             }
         }
 
