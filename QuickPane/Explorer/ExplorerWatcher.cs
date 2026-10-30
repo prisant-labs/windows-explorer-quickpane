@@ -45,16 +45,16 @@ namespace QuickPane.Explorer
         private readonly System.Threading.AutoResetEvent _burstSignal = new System.Threading.AutoResetEvent(false);
         private void Burst(int ms = 250) { _burstUntilTick = Environment.TickCount + ms; _burstSignal.Set(); }
 
-        // The window whose border the user is dragging. While Windows runs the drag, Explorer puts its
-        // tab back at full width on every step, and the split used to be reapplied after each one, so
-        // Explorer's tree and the file list jumped under the pane and back about a hundred times in a
-        // two-second drag. Holding the split from the enforcer only shortened each jump and made the
-        // border trail the cursor, because each correction waits for Explorer's thread to finish its own
-        // layout first. So the dragged window is left to Explorer until the drag ends, and the split is
-        // reapplied once on release: two jumps per drag instead of a hundred
-        // (prisant-labs/windows-explorer-quickpane#99). A programmatic resize never resets the tab, so
-        // only the drag, which MOVESIZESTART and MOVESIZEEND bracket, needs this. Capped, so a lost
-        // end event cannot leave a window unmanaged.
+        // The window whose border the user is dragging. Explorer puts its tab back at full width on every
+        // resize, programmatic ones included; outside a drag the correction lands before anyone sees it.
+        // During a drag the steps come too fast, so reapplying the split after each one made Explorer's
+        // tree and the file list jump under the pane and back about a hundred times in a two-second drag.
+        // Holding the split from the enforcer only shortened each jump and made the border trail the
+        // cursor, because each correction waits for Explorer's thread to finish its own layout first. So
+        // the dragged window is left to Explorer until the drag ends, and the split is reapplied once on
+        // release (prisant-labs/windows-explorer-quickpane#99). Leaving Explorer's layout alone put its
+        // tree under the pane for the whole drag, so the pane, being the add-on, hides for the drag
+        // instead (#102). Capped, so a lost end event cannot leave a window unmanaged.
         private ExplorerWindow _sizing;
         private int _sizingSinceTick;
         internal const int DragYieldCapMs = 30000;
@@ -212,28 +212,30 @@ namespace QuickPane.Explorer
 
             if (eventType == NM.EVENT_SYSTEM_MOVESIZESTART)
             {
-                // A title-bar move raises the same events. Yielding then only defers any correction to
-                // the release. A window still marked from a drag whose end event was lost is released
-                // first, so it cannot stay unmanaged until the cap.
+                // A title-bar move raises the same events but never resizes, so the pane stays up for a
+                // move and hides only for a resize. The cursor on the border tells them apart at once;
+                // a keyboard resize is caught at its first size change instead. A window still marked
+                // from a drag whose end event was lost is released first, so it cannot stay unmanaged
+                // until the cap.
                 var previous = _sizing;
-                if (previous != null && previous != win) { ForgetSizing(previous); previous.ApplyLayout(); }
+                if (previous != null && previous != win) ForgetSizing(previous);
                 _sizingSinceTick = Environment.TickCount;
                 _sizing = win;
-                win.Yielding = true;
+                win.BeginDrag(ResizeBorder.CursorOn(hwnd));
                 return;
             }
 
             if (_sizing != win) return;
             ForgetSizing(win);
-            win.ApplyLayout();
             Burst(); // Explorer can lay out once more as the drag ends
         }
 
-        // Manage a window normally again: its drag ended, its end event was lost, or it closed.
+        // Manage a window normally again: its drag ended, its end event was lost, or it closed. EndDrag
+        // reapplies the split and shows the pane again; on a closed window both are no-ops.
         private void ForgetSizing(ExplorerWindow win)
         {
             if (_sizing == win) _sizing = null;
-            win.Yielding = false;
+            win.EndDrag();
         }
 
         private static bool IsExplorerFolder(IntPtr hwnd)

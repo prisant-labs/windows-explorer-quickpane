@@ -75,6 +75,7 @@
     <Compile Include="Explorer\DialogPaneWatcher.cs" />
     <Compile Include="Explorer\DialogInsidePane.cs" />
     <Compile Include="Interop\VirtualDesktop.cs" />
+    <Compile Include="Interop\ResizeBorder.cs" />
     <Compile Include="Models\Models.cs" />
     <Compile Include="Services\Log.cs" />
     <Compile Include="Services\CrashGuard.cs" />
