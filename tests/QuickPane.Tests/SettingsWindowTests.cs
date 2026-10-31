@@ -6,7 +6,7 @@ namespace QuickPane.Tests
 {
     /// <summary>The one layout decision in SettingsWindow.cs that can be tested with no window at
     /// all: how much margin compensates for the resize-frame overhang WindowChrome leaves when
-    /// maximized. See AC-27 ("every testable decision lives in an internal static method").</summary>
+    /// maximized. Every testable decision lives in an internal static method.</summary>
     [TestFixture]
     public class SettingsWindowTests
     {
@@ -25,7 +25,7 @@ namespace QuickPane.Tests
             Assert.That(SettingsWindow.RootMarginFor(state, border), Is.EqualTo(new Thickness(0)));
         }
 
-        // AC-23/AC-24 (#97): the two timing log lines are the only part of the instrumentation that
+        // #97: the two timing log lines are the only part of the instrumentation that
         // is a pure decision, so they are the only part covered here; the Stopwatch calls around
         // them need a real window and are left to the sandbox's timing measurements.
 

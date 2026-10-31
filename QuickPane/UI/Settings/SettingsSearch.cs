@@ -7,7 +7,7 @@ namespace QuickPane.UI.Settings
     /// <summary>One thing the search box can find: a page, or a card inside a page. Every page
     /// declares its entries through <see cref="SettingsPage.SearchEntries"/>, which runs with no
     /// <c>SettingsStore</c>, no <c>GroupStore</c>, and no window, so the whole index can be built,
-    /// and tested, before Settings is ever opened (AC-6).</summary>
+    /// and tested, before Settings is ever opened.</summary>
     internal sealed class SettingsSearchEntry
     {
         /// <summary>The page this entry opens, matching some <see cref="SettingsPage.Id"/>.</summary>
@@ -34,7 +34,7 @@ namespace QuickPane.UI.Settings
     }
 
     /// <summary>Builds the search index from every registered page's entries and answers queries
-    /// against it. A pure class with no UI, so it is covered by ordinary unit tests (AC-27).</summary>
+    /// against it. A pure class with no UI, so it is covered by ordinary unit tests.</summary>
     internal static class SettingsSearchIndex
     {
         /// <summary>Flattens every page's <see cref="SettingsPage.SearchEntries"/> into one list, in

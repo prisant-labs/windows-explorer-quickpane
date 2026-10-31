@@ -132,7 +132,7 @@ namespace QuickPane.Tests
         [Test]
         public void AppliedDictionaries_NeverReachApplicationLevelResources()
         {
-            // AC-20: the Fluent port must stay scoped to the Settings window and never leak into
+            // The Fluent port must stay scoped to the Settings window and never leak into
             // Application.Current.Resources, which every Explorer pane inherits. A live Window
             // cannot be constructed here (AGENTS.md: tests never show a window; a bare
             // FrameworkElement throws "The calling thread must be STA" under this NUnit host, see

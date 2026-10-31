@@ -4,13 +4,13 @@ using QuickPane.UI.Settings.Pages;
 namespace QuickPane.Tests
 {
     /// <summary>The pure decisions #93's two pages (Keyboard, Backup & restore) pull out of their
-    /// UI so they are unit-testable with no window, no SettingsStore, and no GroupStore (AC-27).
+    /// UI so they are unit-testable with no window, no SettingsStore, and no GroupStore.
     /// See <see cref="KeyboardPage.ValidateHotkeyText"/> and the message formatters on
     /// <see cref="BackupPage"/>.</summary>
     [TestFixture]
     public class Settings93PageTests
     {
-        // ---- KeyboardPage.ValidateHotkeyText (AC-15) ----------------------
+        // ---- KeyboardPage.ValidateHotkeyText ----------------------
         //
         // Pins the same contract as the old text box's LostFocus handler at commit 068301b
         // (SettingsPanel.xaml.cs's HotkeysBlock): HotkeyService.TryParse decides accept/revert,
@@ -42,7 +42,7 @@ namespace QuickPane.Tests
             Assert.That(result, Is.EqualTo("ctrl+shift+Z"));
         }
 
-        // ---- BackupPage message formatters (AC-17) ------------------------
+        // ---- BackupPage message formatters ------------------------
         //
         // Pins the same status text the old Back up/Restore handlers at 068301b wrote, now shown
         // in an info bar instead of a status TextBlock.

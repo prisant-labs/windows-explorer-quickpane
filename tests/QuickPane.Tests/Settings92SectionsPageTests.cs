@@ -7,7 +7,7 @@ namespace QuickPane.Tests
 {
     /// <summary>Exercises <see cref="SectionsPage.OrderedSections"/> and
     /// <see cref="SectionsPage.MoveSection"/> with plain <see cref="AppSettings"/>/<see cref="SectionSetting"/>
-    /// objects and no window, exactly as #92's Move up/Move down buttons use them (AC-13).</summary>
+    /// objects and no window, exactly as #92's Move up/Move down buttons use them.</summary>
     [TestFixture]
     public class Settings92SectionsPageTests
     {

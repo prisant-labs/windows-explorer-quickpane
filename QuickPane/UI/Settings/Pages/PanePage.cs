@@ -10,7 +10,7 @@ namespace QuickPane.UI.Settings.Pages
 
     /// <summary>Pane mode and File dialogs cards (combo boxes), a Desktop dock expander (toggle in
     /// the header, auto-hide and all-desktops as child rows), and a Profile tabs expander (toggle in
-    /// the header, auto-hide as a child row) (AC-12). Every setting here reads and writes the same
+    /// the header, auto-hide as a child row). Every setting here reads and writes the same
     /// <see cref="AppSettings"/> field, with the same values and the same immediate
     /// <c>SettingsStore.Save()</c>, as the matching handler in <c>SettingsPanel.xaml.cs</c> at
     /// commit 068301b (<c>PaneModeBlock</c>, <c>DialogModeBlock</c>, <c>DockBlock</c>,

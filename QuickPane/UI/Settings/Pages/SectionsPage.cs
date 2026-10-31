@@ -12,7 +12,7 @@ namespace QuickPane.UI.Settings.Pages
     // 068301b.
 
     /// <summary>One card per pane section, each with a visibility toggle and Move up / Move down
-    /// buttons in place of today's drag-reorder (AC-13). Visibility reads and writes the same
+    /// buttons in place of today's drag-reorder. Visibility reads and writes the same
     /// <see cref="SectionSetting.Visible"/> field, with the same immediate
     /// <c>SettingsStore.Save()</c>, as the old <c>BuildSectionRow</c> checkbox at commit 068301b.
     /// Reorder writes the same <see cref="SectionSetting.Order"/> field the old drag handler did --
@@ -46,9 +46,9 @@ namespace QuickPane.UI.Settings.Pages
         /// moved section's <see cref="SectionSetting.Type"/>, or null on first build) plus
         /// <paramref name="refocusDirection"/> (the direction that was clicked, -1 or +1, or 0 for
         /// the visibility toggle, which lands focus back on that row's toggle) lets the
-        /// click that triggered the move land keyboard focus back on a button for the same row
-        /// (AC-22), which a full <c>Rebuild()</c> would otherwise drop. Prefers the button for the
-        /// same direction clicked; falls back to the opposite direction when the row is now at that
+        /// click that triggered the move land keyboard focus back on a button for the same row,
+        /// which a full <c>Rebuild()</c> would otherwise drop. Prefers the button for the same
+        /// direction clicked; falls back to the opposite direction when the row is now at that
         /// end of the list and the same-direction button is disabled.</summary>
         private void Populate(StackPanel panel, SettingsPageContext ctx, string refocusType, int refocusDirection)
         {
@@ -136,7 +136,7 @@ namespace QuickPane.UI.Settings.Pages
             }
         }
 
-        // ---- reorder logic (AC-13: "unit test if reorder logic moves out of the UI") ----
+        // ---- reorder logic (unit-tested since it moved out of the UI) ----
 
         /// <summary>Sections sorted by <see cref="SectionSetting.Order"/>, same sort the old
         /// <c>SectionsBlock</c> used (<c>s.Sections.OrderBy(x =&gt; x.Order)</c>). The returned list
@@ -159,7 +159,7 @@ namespace QuickPane.UI.Settings.Pages
         /// display order never actually changes. Returns false, changing nothing, when
         /// <paramref name="index"/> or the neighbour is out of range -- the first row has no "up" and
         /// the last has no "down". A pure decision over the list's own <c>Order</c> values, so it is
-        /// unit-testable with no <c>SettingsStore</c> at all (AC-27).</summary>
+        /// unit-testable with no <c>SettingsStore</c> at all.</summary>
         internal static bool MoveSection(List<SectionSetting> ordered, int index, int direction)
         {
             if (ordered == null) return false;

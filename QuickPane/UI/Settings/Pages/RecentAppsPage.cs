@@ -9,7 +9,7 @@ namespace QuickPane.UI.Settings.Pages
     // 068301b, as its own page instead of sharing Pane's crowded left column.
 
     /// <summary>A single card with a combo box for the Recent Apps source, and the explanatory note
-    /// the old column showed beside the radios, folded into the card's description (AC-14). Reads
+    /// the old column showed beside the radios, folded into the card's description. Reads
     /// and writes <see cref="AppSettings.RecentAppsSource"/> with the same values ("both", "open",
     /// "dialogs") and the same immediate <c>SettingsStore.Save()</c> as the old
     /// <c>RecentAppsBlock</c>/<c>SourceRadio</c> at commit 068301b.</summary>

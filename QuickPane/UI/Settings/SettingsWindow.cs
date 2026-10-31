@@ -25,11 +25,11 @@ namespace QuickPane.UI.Settings
     /// <summary>One entry in the navigation pane. A page's constructor takes no arguments, so
     /// <see cref="SettingsSearchIndex"/> can list <see cref="SearchEntries"/> with no
     /// <c>SettingsStore</c>, no <c>GroupStore</c>, and no window at all: the search index exists,
-    /// and is testable, before Settings is ever opened (AC-6). Only <see cref="Build"/> needs the
+    /// and is testable, before Settings is ever opened. Only <see cref="Build"/> needs the
     /// real stores, and only while the page is on screen.</summary>
     internal abstract class SettingsPage
     {
-        /// <summary>Stable key used for the remembered page (AC-7), the nav selection, and the
+        /// <summary>Stable key used for the remembered page, the nav selection, and the
         /// page half of every one of this page's <see cref="SettingsSearchEntry"/>. Never shown to
         /// the user: "groups", "pane", "sections", "recent", "keyboard", "ssh", "backup", "about".</summary>
         public abstract string Id { get; }
@@ -47,10 +47,10 @@ namespace QuickPane.UI.Settings
         public virtual IEnumerable<SettingsSearchEntry> SearchEntries { get { yield break; } }
 
         /// <summary>Builds this page's content fresh. Called every time the page is opened or the
-        /// window rebuilds (AC-7), so it must read <see cref="SettingsPageContext.Settings"/> and
+        /// window rebuilds, so it must read <see cref="SettingsPageContext.Settings"/> and
         /// <see cref="SettingsPageContext.Groups"/> for current state rather than caching anything,
         /// and it must do no disk, network, or COM work itself -- that goes through
-        /// <c>WorkQueue</c> before this runs (AC-23). A <c>WorkQueue</c> callback that touches the
+        /// <c>WorkQueue</c> before this runs. A <c>WorkQueue</c> callback that touches the
         /// tree, registers a card, or calls <see cref="SettingsPageContext.Rebuild"/> or
         /// <see cref="SettingsPageContext.OpenSubPage"/> after returning must check
         /// <see cref="SettingsPageContext.IsCurrent"/> first, since the user may have navigated
@@ -122,7 +122,7 @@ namespace QuickPane.UI.Settings
             _shell.OpenSubPage(title, build);
         }
 
-        /// <summary>Rebuilds the window on the same top-level page (AC-7), e.g. after Restore
+        /// <summary>Rebuilds the window on the same top-level page, e.g. after Restore
         /// replaces every setting on disk. Drops any open sub-page: a sub-page usually names one
         /// profile or connection, and a restore may have removed exactly that one.</summary>
         public void Rebuild()
@@ -141,14 +141,15 @@ namespace QuickPane.UI.Settings
     /// here against the matching one in <c>SettingsPanel.xaml.cs</c> at commit 068301b line by
     /// line. Every colour comes from a Fluent <c>DynamicResource</c> key, applied through
     /// <see cref="FluentThemeService"/> into this window's own <see cref="Window.Resources"/> and
-    /// nowhere else (AC-20); nothing here reads <c>ThemeService.IsDark</c> to pick a colour.</summary>
+    /// nowhere else, never into <c>Application.Current.Resources</c>; nothing here reads
+    /// <c>ThemeService.IsDark</c> to pick a colour.</summary>
     public sealed class SettingsWindow : Window, ISettingsShell
     {
         private const double NavWidth = 272;        // 260-280 px is acceptable
         private const double TitleBarHeight = 48;
         // MinWidth = nav (272) + content's left/right margin (32+32) + the narrowest a settings
         // card is allowed to get before its control wraps under the title (476), so the window can
-        // never be resized into a state AC-8 forbids.
+        // never be resized into a state where a card's control overlaps its title.
         private const double MinContentWidth = 32 + SettingsCards.WrapBelowWidth + 32;
 
         private readonly SettingsStore _settings;
@@ -177,12 +178,12 @@ namespace QuickPane.UI.Settings
         private ContentControl _headerHost;
         private ScrollViewer _bodyScroller;
 
-        // AC-23/AC-24 (#97): instrumentation only. Measures how long Settings takes to open (this
+        // #97: instrumentation only. Measures how long Settings takes to open (this
         // constructor's start to the window's first real paint) and how long each page switch
-        // takes, so the sandbox can compare both against the 500 ms budget without guessing. Never
-        // read by anything other than the two log lines below -- no behavior depends on the value,
-        // and this does not itself move Settings onto its own UI thread; AC-24 says that decision
-        // waits for the measurement these two lines produce.
+        // takes, so the sandbox can compare both against the 500 ms open-time budget without
+        // guessing. Never read by anything other than the two log lines below -- no behavior
+        // depends on the value, and this does not itself move Settings onto its own UI thread;
+        // that decision waits for the measurement these two lines produce.
         private readonly Stopwatch _openStopwatch = Stopwatch.StartNew();
         private bool _openTimeLogged;
 
@@ -224,7 +225,8 @@ namespace QuickPane.UI.Settings
                 UseAeroCaptionButtons = true,
             });
 
-            // Merges Themes/Fluent into THIS window's own Resources only (AC-20). Must run before
+            // Merges Themes/Fluent into THIS window's own Resources only, never into
+            // Application.Current.Resources. Must run before
             // Content is set so the implicit styles are already in scope when pages enter the tree.
             FluentThemeService.Attach(this, theme);
 
@@ -234,7 +236,7 @@ namespace QuickPane.UI.Settings
             StateChanged += (s, e) => UpdateMaximizedMargin();
 
             // ContentRendered is the window's first real paint, so it is the "open" half of the
-            // AC-24 budget. It can fire more than once (e.g. after a later layout pass), so
+            // 500 ms open-time budget. It can fire more than once (e.g. after a later layout pass), so
             // _openTimeLogged keeps this to the first one, which is the number that matters.
             ContentRendered += (s, e) =>
             {
@@ -262,7 +264,7 @@ namespace QuickPane.UI.Settings
         /// unique ids, About last) with no window and no stores -- see SettingsSearchIndexTests.</summary>
         internal static List<SettingsPage> BuildPages()
         {
-            // "About" is last; everything that pins it to the bottom of the nav pane (AC-4) relies
+            // "About" is last; everything that pins it to the bottom of the nav pane relies
             // on that order, not on a flag checked per page.
             return new List<SettingsPage>
             {
@@ -279,7 +281,7 @@ namespace QuickPane.UI.Settings
 
         // ---- window chrome / Mica -----------------------------------------
 
-        /// <summary>AC-2: Mica on Windows 11 through DWMWA_SYSTEMBACKDROP_TYPE, or the flat
+        /// <summary>Mica on Windows 11 through DWMWA_SYSTEMBACKDROP_TYPE, or the flat
         /// SolidBackgroundFillColorBase fallback on Windows 10 or any build where the DWM call
         /// fails. The fallback is a DynamicResource, not a literal colour, so it still tracks a
         /// theme change live even though Mica itself does not need that: DWM
@@ -380,7 +382,7 @@ namespace QuickPane.UI.Settings
         }
 
         /// <summary>The 48 px caption row: a 16 px app icon and "QuickPane Settings" at 12 px, on
-        /// the same transparent backdrop as everything below it (AC-1), with WindowChrome treating
+        /// the same transparent backdrop as everything below it, with WindowChrome treating
         /// the row as the drag/caption-button area.</summary>
         private FrameworkElement BuildTitleRow()
         {
@@ -446,7 +448,7 @@ namespace QuickPane.UI.Settings
             // Build every nav button, About included, in _pages order (About last) so _navOrder
             // -- what OnNavItemArrowKey's Up/Down walks -- matches the pane's visual order top to
             // bottom. About is laid out separately, pinned below the free space with DockPanel's
-            // Dock.Bottom (AC-4), but it is built here rather than after the loop so the arrow-key
+            // Dock.Bottom, but it is built here rather than after the loop so the arrow-key
             // order and the explicit TabIndex below both read top to bottom without a special case.
             var navButtons = new List<Button>(_pages.Count);
             for (int i = 0; i < _pages.Count; i++) navButtons.Add(BuildNavItem(_pages[i]));
@@ -470,7 +472,7 @@ namespace QuickPane.UI.Settings
                 Content = mainList,
                 Focusable = false,   // a bare ScrollViewer is otherwise its own tab stop between the nav buttons and the page
             };
-            dock.Children.Add(mainScroller);   // added last with no Dock set: fills the remaining height, so About sits pinned below the free space (AC-4)
+            dock.Children.Add(mainScroller);   // added last with no Dock set: fills the remaining height, so About sits pinned below the free space
 
             return dock;
         }
@@ -480,7 +482,7 @@ namespace QuickPane.UI.Settings
         /// accent pill reserved at a fixed width so the icon never shifts when the pill appears.
         /// Wrapped in <see cref="SettingsCards.Invokable"/> so the item is a real button for UI
         /// Automation (a bare <see cref="Border"/> has no automation peer) and gets Enter/Space
-        /// activation for free; only the Up/Down arrow-key crossing (AC-22) is handled here.</summary>
+        /// activation for free; only the Up/Down arrow-key crossing is handled here.</summary>
         private Button BuildNavItem(SettingsPage page)
         {
             var pill = new Border { Width = 3, Height = 16, CornerRadius = new CornerRadius(2), HorizontalAlignment = HorizontalAlignment.Left, Visibility = Visibility.Hidden };
@@ -538,7 +540,7 @@ namespace QuickPane.UI.Settings
         private static readonly FontFamily NavIconFont = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets");
 
         /// <summary>Up/Down moves to the neighbour in nav order, crossing from the main list into
-        /// the pinned "About" item and back (AC-22). Enter/Space is the button's own default
+        /// the pinned "About" item and back. Enter/Space is the button's own default
         /// activation, so only the arrow keys need handling here. The nav pane holds two visual
         /// groups but one logical order, so this is the one place that stitches them back into a
         /// single arrow-key sequence.</summary>
@@ -586,7 +588,7 @@ namespace QuickPane.UI.Settings
             }
         }
 
-        /// <summary>AC-6: opens the chosen result's page and moves keyboard focus to its card's
+        /// <summary>Opens the chosen result's page and moves keyboard focus to its card's
         /// control. The target is not in the visual tree synchronously right after <see cref="Navigate"/>
         /// rebuilds the page, so the focus call runs once the layout pass that follows has finished.</summary>
         private void CommitSearchSelection()
@@ -682,7 +684,7 @@ namespace QuickPane.UI.Settings
             RenderCurrentPage();
         }
 
-        /// <summary>Rebuilds on the same top-level page (AC-7). Judgment call: this remembers the
+        /// <summary>Rebuilds on the same top-level page. Judgment call: this remembers the
         /// page id, not an open sub-page -- a sub-page usually names one profile or connection, and
         /// the rebuild that triggers this (e.g. a completed Restore) is exactly the case where that
         /// one thing may no longer exist. Called only through <see cref="SettingsPageContext.Rebuild"/>.</summary>
@@ -719,7 +721,7 @@ namespace QuickPane.UI.Settings
             _bodyScroller.Content = body;
             SelectNav(page.Id);
 
-            // AC-23/AC-24 (#97): generation 1 is the window's very first render, already covered by
+            // #97: generation 1 is the window's very first render, already covered by
             // the ContentRendered open-time log above, so only later navigations (page switches and
             // sub-page opens) are timed here. The Loaded-priority dispatch waits for the new content
             // to actually lay out and render before the clock stops, not just for this method to
@@ -736,14 +738,14 @@ namespace QuickPane.UI.Settings
             }
         }
 
-        /// <summary>The "Settings opened in N ms" log line (AC-24). A pure decision, so it is
-        /// unit-testable without a window.</summary>
+        /// <summary>The "Settings opened in N ms" log line, against the 500 ms open-time budget.
+        /// A pure decision, so it is unit-testable without a window.</summary>
         internal static string FormatOpenTiming(long elapsedMs)
         {
             return "SettingsWindow: opened in " + elapsedMs + " ms";
         }
 
-        /// <summary>The "switched to page '...' in N ms" log line (AC-23/AC-24). A pure decision,
+        /// <summary>The "switched to page '...' in N ms" log line. A pure decision,
         /// so it is unit-testable without a window.</summary>
         internal static string FormatPageSwitchTiming(string pageId, long elapsedMs)
         {

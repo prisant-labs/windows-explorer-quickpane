@@ -129,7 +129,7 @@ namespace QuickPane.Interop
 
         // The Mica backdrop (Windows 11 22H2+). DwmSetWindowAttribute returns a non-zero HRESULT on
         // Windows 10 or any build that does not support it, which is how SettingsWindow picks the
-        // flat-colour fallback AC-2 asks for.
+        // flat-colour fallback.
         public const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
         public const int DWMSBT_MAINWINDOW = 2;   // "Mica": the backdrop the Settings app itself uses
 

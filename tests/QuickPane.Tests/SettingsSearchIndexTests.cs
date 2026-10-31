@@ -7,7 +7,7 @@ namespace QuickPane.Tests
 {
     /// <summary>Exercises <see cref="SettingsSearchIndex"/> with hand-built entries, and separately
     /// against the real page list, with no SettingsStore, no GroupStore, and no window -- exactly
-    /// how the search box itself can query the index before any page has ever been opened (AC-6).</summary>
+    /// how the search box itself can query the index before any page has ever been opened.</summary>
     [TestFixture]
     public class SettingsSearchIndexTests
     {
