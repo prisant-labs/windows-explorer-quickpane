@@ -12,16 +12,15 @@ using WinForms = System.Windows.Forms;
 
 namespace QuickPane.UI.Settings.Pages
 {
-    // Owner: #94 (SSH drives page). Covers AC-16 and AC-23. See the README's "Settings inventory"
-    // for every control this page must carry over from SettingsPanel.xaml.cs's "Connections" tab,
-    // and the old code at commit 068301b. The 3.11 plan's risk table flags
-    // SshfsService.IsInstalled() as today's one disk check on the UI thread
+    // Carries over every control from SettingsPanel.xaml.cs's "Connections" tab, at commit
+    // 068301b. SshfsService.IsInstalled() was that page's one disk check on the UI thread
     // (SettingsPanel.xaml.cs line 671): StartInstallCheck below moves it onto WorkQueue and shows
-    // the setup cards once it answers (AC-23). Add connection's drive-letter probe also runs on
-    // WorkQueue, since adding a connection is saving a setting. Everything else here --
+    // the setup cards once it answers. Add connection's drive-letter probe also runs on WorkQueue,
+    // since adding a connection is saving a setting. Everything else here --
     // SshfsService.Mount/Unmount, Process.Start for a download link, Clipboard.SetText for the
     // winget commands -- keeps the same direct call the old handler made; moving the rest as well
-    // was judged out of scope for one page's worth of changes (noted for #97).
+    // was judged out of scope for this page, and is tracked in #97 (whether Settings needs its own
+    // UI thread).
 
     /// <summary>An info bar plus setup cards (WinFsp, SSHFS-Win, winget commands) when either
     /// component is missing, one expandable card per connection with every field from the
@@ -37,7 +36,8 @@ namespace QuickPane.UI.Settings.Pages
         // stable across a Rebuild() because Rebuild() re-reads the same AppSettings.SshProfiles
         // list rather than replacing it; this is a judgment call (not in the page contract, which
         // says nothing about surviving confirm state across renders) but it is what lets a delete
-        // confirmation row (README: every delete/remove gets one) survive the Rebuild() that
+        // confirmation row -- the same inline pattern every delete/remove in Settings uses --
+        // survive the Rebuild() that
         // AuthMethod/Connect/Disconnect/Add/Remove themselves trigger, without inventing a
         // dialog. It is reset whenever the connection is actually removed or the user cancels.
         private readonly HashSet<SshProfile> _pendingRemove = new HashSet<SshProfile>();
@@ -191,11 +191,9 @@ namespace QuickPane.UI.Settings.Pages
             var expander = ctx.Cards.Expander(cardId, PageGlyph, p.Name, status,
                 headerControl: null, initiallyExpanded: true, accessibleName: p.Name + " connection");
 
-            // Accessible names below follow the prototype's own aria-labels/data-aname
-            // (prototype-settings-native.html's renderSsh()), the starting list AC-21 names: most
-            // fields keep a plain name ("Hostname", "Port"), and only Authentication, Reconnect,
-            // Connect/Disconnect, and Remove connection fold the connection's name in, exactly where
-            // the prototype folds it in.
+            // Accessible names below follow one consistent pattern: most fields keep a plain name
+            // ("Hostname", "Port"), and only Authentication, Reconnect, Connect/Disconnect, and
+            // Remove connection fold the connection's name in.
             expander.AddChild(ctx.Cards.ChildRow("Name",
                 CommitTextBox(p.Name, v =>
                 {
@@ -224,8 +222,11 @@ namespace QuickPane.UI.Settings.Pages
                 CommitTextBox(p.Username, v => { p.Username = v; ctx.Settings.Save(); }),
                 "Auto-login username"));
 
+            // Rebuild() swaps the private-key or password row below in, exactly like the old radio
+            // group's Checked handler (SettingsPanel.xaml.cs lines 735-738).
             expander.AddChild(ctx.Cards.ChildRow("Authentication",
-                AuthenticationCombo(p, v => { p.AuthMethod = v; ctx.Settings.Save(); ctx.Rebuild(); }),
+                ctx.Cards.Combo(AuthenticationOptions, p.AuthMethod,
+                    v => { p.AuthMethod = v; ctx.Settings.Save(); ctx.Rebuild(); }, minWidth: 160),
                 "Authentication for " + p.Name));
 
             if (string.Equals(p.AuthMethod, "password", StringComparison.OrdinalIgnoreCase))
@@ -344,30 +345,19 @@ namespace QuickPane.UI.Settings.Pages
 
         // ---- field builders ---------------------------------------------------
 
-        /// <summary>A combo box with no shared builder of its own (SettingsCards.cs is frozen for
-        /// page workers and has no ComboBox helper): private here, as the task instructions allow
-        /// for a missing shared piece. Swaps the private-key or password row below it, exactly like
-        /// the old radio group's Checked handler (SettingsPanel.xaml.cs lines 735-738).</summary>
-        private static ComboBox AuthenticationCombo(SshProfile p, Action<string> onSelect)
+        /// <summary>The two-option (value, label) pairs for <see cref="SshPage"/>'s Authentication
+        /// combo box: the value is <see cref="SshProfile.AuthMethod"/>'s own stored value.</summary>
+        private static readonly KeyValuePair<string, string>[] AuthenticationOptions =
         {
-            var combo = new ComboBox { MinWidth = 160 };
-            combo.Items.Add(new ComboBoxItem { Content = "Private key", Tag = "key" });
-            combo.Items.Add(new ComboBoxItem { Content = "Password", Tag = "password" });
-            combo.SelectedIndex = string.Equals(p.AuthMethod, "password", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
-            combo.SelectionChanged += (a, b) =>
-            {
-                var item = combo.SelectedItem as ComboBoxItem;
-                if (item == null) return;
-                onSelect((string)item.Tag);
-            };
-            return combo;
-        }
+            new KeyValuePair<string, string>("key", "Private key"),
+            new KeyValuePair<string, string>("password", "Password"),
+        };
 
         /// <summary>Editable text box + Browse button, matching the old key-file row
         /// (SettingsPanel.xaml.cs lines 793-812) exactly: typing a path directly still works, which
         /// the shared <c>SettingsCards.PathField</c> cannot do once given a Browse callback (it
-        /// forces the box read-only). Built privately here rather than changing that shared,
-        /// frozen-for-page-workers helper.</summary>
+        /// forces the box read-only). Built here instead of changing that shared helper, which
+        /// every other path field in Settings still relies on being read-only with Browse.</summary>
         private static FrameworkElement KeyFileRow(SettingsPageContext ctx, SshProfile p)
         {
             var grid = new Grid();

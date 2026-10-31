@@ -7,10 +7,8 @@ using Microsoft.Win32;
 
 namespace QuickPane.UI.Settings.Pages
 {
-    // Owner: #93 (Keyboard and Backup & restore pages). Covers AC-15, AC-17. See the README's
-    // "Settings inventory" for every control this page must carry over from
-    // SettingsPanel.xaml.cs's "Backup" tab, and the old code at commit 068301b. The old footer's
-    // version/update-check UI does NOT move here; it moves to About (#95, AC-18).
+    // Carries over every control from SettingsPanel.xaml.cs's "Backup" tab, at commit 068301b. The
+    // old footer's version/update-check UI does not move here; it moves to the About page instead.
 
     /// <summary>Back up and Restore buttons, with the result in an info bar. A successful restore
     /// calls <see cref="SettingsPageContext.Rebuild"/>, as today (AC-17).

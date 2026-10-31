@@ -19,8 +19,8 @@ namespace QuickPane.UI.Settings
 {
     // ---- the page contract ---------------------------------------------
     //
-    // Every page worker (#91-#95) implements one SettingsPage. The five page files, and their
-    // tests, depend on everything below exactly as written here.
+    // Every page in QuickPane/UI/Settings/Pages implements one SettingsPage. Those page files, and
+    // their tests, depend on everything below exactly as written here.
 
     /// <summary>One entry in the navigation pane. A page's constructor takes no arguments, so
     /// <see cref="SettingsSearchIndex"/> can list <see cref="SearchEntries"/> with no
@@ -38,8 +38,7 @@ namespace QuickPane.UI.Settings
         public abstract string Title { get; }
 
         /// <summary>A Segoe Fluent Icons glyph (one UTF-16 char, e.g. ""), shown at 16 px in
-        /// the navigation pane. #24 already set up the icon font; exact glyph choices here are a
-        /// first pass and may move in the accessibility pass (#96).</summary>
+        /// the navigation pane.</summary>
         public abstract string Glyph { get; }
 
         /// <summary>The entries this page contributes to the search index. The default yields
@@ -87,12 +86,12 @@ namespace QuickPane.UI.Settings
         }
 
         /// <summary>True while this context's render is still the one on screen. A WorkQueue
-        /// callback can return after the user has navigated away (e.g. #94's SshfsService.IsInstalled
-        /// check): <see cref="RenderCurrentPage"/> bumps the window's render generation on every
-        /// render, top-level or sub-page, so a stale callback can check this before touching the
-        /// tree, registering a card, or calling <see cref="Rebuild"/> or <see cref="OpenSubPage"/>,
-        /// any of which would otherwise act on whichever page happens to be current instead of the
-        /// one that queued the work.</summary>
+        /// callback can return after the user has navigated away (e.g. SshPage's
+        /// SshfsService.IsInstalled check): <see cref="RenderCurrentPage"/> bumps the window's
+        /// render generation on every render, top-level or sub-page, so a stale callback can check
+        /// this before touching the tree, registering a card, or calling <see cref="Rebuild"/> or
+        /// <see cref="OpenSubPage"/>, any of which would otherwise act on whichever page happens to
+        /// be current instead of the one that queued the work.</summary>
         public bool IsCurrent { get { return _window.RenderGeneration == _generation; } }
 
         /// <summary>Opens a sub-page under the one currently showing, with a breadcrumb reading
@@ -132,7 +131,7 @@ namespace QuickPane.UI.Settings
     /// nowhere else (AC-20); nothing here reads <c>ThemeService.IsDark</c> to pick a colour.</summary>
     public sealed class SettingsWindow : Window
     {
-        private const double NavWidth = 272;        // SPEC.md: 260-280 px is acceptable
+        private const double NavWidth = 272;        // 260-280 px is acceptable
         private const double TitleBarHeight = 48;
         // MinWidth = nav (272) + content's left/right margin (32+32) + the narrowest a settings
         // card is allowed to get before its control wraps under the title (476), so the window can
@@ -270,7 +269,7 @@ namespace QuickPane.UI.Settings
         /// <summary>AC-2: Mica on Windows 11 through DWMWA_SYSTEMBACKDROP_TYPE, or the flat
         /// SolidBackgroundFillColorBase fallback on Windows 10 or any build where the DWM call
         /// fails. The fallback is a DynamicResource, not a literal colour, so it still tracks a
-        /// theme change live (Foundation rule 4) even though Mica itself does not need that: DWM
+        /// theme change live even though Mica itself does not need that: DWM
         /// repaints Mica for light/dark on its own once ThemeService's dark-title-bar call (#26,
         /// wired through <c>App.ShowSettingsWindow</c>'s existing <c>Theme.AttachWindow</c>) flips.
         ///
@@ -280,13 +279,13 @@ namespace QuickPane.UI.Settings
         /// window frame -- which already shows #26's dark title bar natively -- and the custom
         /// title row collapses, since the OS frame now draws the icon and caption itself.
         ///
-        /// The sandbox may not render Mica at all (the 3.11 plan's open question); only the user's
+        /// The sandbox may not render Mica at all; only the user's
         /// own Windows 11 desktop confirms this path actually paints Mica, not just that it did not
         /// error.
         ///
         /// Under high contrast this takes the same fallback path as a failed DWM call, rather than
         /// requesting Mica at all: the nav pane and title row have no background of their own
-        /// (Foundation rule 4 keeps every colour a DynamicResource, and none of them paint a solid
+        /// (every colour here is a DynamicResource, and none of them paint a solid
         /// window-level background), so without this they would sit on whatever DWM paints under
         /// Mica, which is not guaranteed to be SystemColorWindowColor, the colour HC.xaml's
         /// window-text brushes expect behind them. Re-run from the <see cref="ThemeService.ThemeChanged"/>
@@ -319,8 +318,8 @@ namespace QuickPane.UI.Settings
             }
         }
 
-        /// <summary>Compensates for the resize-frame overhang WindowChrome leaves when maximized
-        /// (SPEC.md's maximized state): without this, a maximized window extends past the monitor
+        /// <summary>Compensates for the resize-frame overhang WindowChrome leaves when maximized:
+        /// without this, a maximized window extends past the monitor
         /// edge by its own resize-border thickness, clipping the title row and the content's left
         /// and top edges. A pure decision, so it is unit-testable with no window at all.</summary>
         internal static Thickness RootMarginFor(WindowState state, Thickness resizeBorder)
@@ -393,8 +392,8 @@ namespace QuickPane.UI.Settings
 
         // ---- navigation pane -------------------------------------------------
 
-        /// <summary>Transparent over the backdrop (SPEC.md: NavigationViewExpandedPaneBackground is
-        /// SolidBackgroundFillColorTransparent), so it is left with no Background at all here.</summary>
+        /// <summary>Transparent over the backdrop: NavigationViewExpandedPaneBackground is
+        /// SolidBackgroundFillColorTransparent, so it is left with no Background at all here.</summary>
         private FrameworkElement BuildNavPane()
         {
             var dock = new DockPanel();
@@ -463,7 +462,7 @@ namespace QuickPane.UI.Settings
             return dock;
         }
 
-        /// <summary>One nav item per SPEC.md's "Navigation items" table: 36 px tall, 4 px radius, a
+        /// <summary>One nav item: 36 px tall, 4 px radius, a
         /// neutral selected background (never an accent tint), regular-weight text, and a 3x16 px
         /// accent pill reserved at a fixed width so the icon never shifts when the pill appears.
         /// Wrapped in <see cref="SettingsCards.Invokable"/> so the item is a real button for UI
@@ -483,7 +482,7 @@ namespace QuickPane.UI.Settings
                 Text = page.Title,
                 FontSize = 14,
                 VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis,   // SPEC.md: labels stay on one line
+                TextTrimming = TextTrimming.CharacterEllipsis,   // labels stay on one line
                 Margin = new Thickness(16, 0, 0, 0),
             };
             label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorPrimaryBrush");
@@ -596,7 +595,7 @@ namespace QuickPane.UI.Settings
         // ---- content area / page host ---------------------------------------
 
         /// <summary>A layer over the backdrop with a rounded top-left corner and a 1 px border on
-        /// its top and left edges only (SPEC.md: NavigationViewContentGridCornerRadius is 8,0,0,0).</summary>
+        /// its top and left edges only (NavigationViewContentGridCornerRadius is 8,0,0,0).</summary>
         private FrameworkElement BuildContentArea()
         {
             var border = new Border { CornerRadius = new CornerRadius(8, 0, 0, 0), BorderThickness = new Thickness(1, 1, 0, 0) };
@@ -681,7 +680,7 @@ namespace QuickPane.UI.Settings
         }
 
         /// <summary>Builds and shows whichever page (or sub-page) is current. Guards the page's own
-        /// <see cref="SettingsPage.Build"/> or sub-page builder: one of the five page
+        /// <see cref="SettingsPage.Build"/> or sub-page builder: one of the eight page
         /// implementations throwing must not leave Settings unable to open at all, nor leave the
         /// previous page on screen with no explanation while navigating.</summary>
         private void RenderCurrentPage()
