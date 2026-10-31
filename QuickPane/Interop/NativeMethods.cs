@@ -127,6 +127,12 @@ namespace QuickPane.Interop
         public const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
         public const int DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
 
+        // The Mica backdrop (Windows 11 22H2+). DwmSetWindowAttribute returns a non-zero HRESULT on
+        // Windows 10 or any build that does not support it, which is how SettingsWindow picks the
+        // flat-colour fallback AC-2 asks for.
+        public const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+        public const int DWMSBT_MAINWINDOW = 2;   // "Mica": the backdrop the Settings app itself uses
+
         // One buffer per thread, because ClassOf runs on the UI thread for every create and show event on
         // the desktop, and on the workers and the layout enforcer too. A new 256-character buffer per
         // call was garbage on the hottest path (prisant-labs/windows-explorer-quickpane#44).
