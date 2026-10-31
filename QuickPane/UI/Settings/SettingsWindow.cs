@@ -380,6 +380,7 @@ namespace QuickPane.UI.Settings
 
             _searchBox = new TextBox { Margin = new Thickness(12, 12, 12, 8), Padding = new Thickness(8, 4, 8, 4) };
             AutomationProperties.SetName(_searchBox, "Search settings");
+            KeyboardNavigation.SetTabIndex(_searchBox, 0);
             _searchBox.TextChanged += (s, e) => OnSearchTextChanged();
 
             // WPF's TextBox has no placeholder, so a hint sits over the box while it is empty, as the
@@ -402,23 +403,40 @@ namespace QuickPane.UI.Settings
             dock.Children.Add(searchHost);
 
             _searchResults = new ListBox { Margin = new Thickness(12, 0, 12, 8), Visibility = Visibility.Collapsed, MaxHeight = 280, DisplayMemberPath = "Title" };
+            AutomationProperties.SetName(_searchResults, "Search results");
+            KeyboardNavigation.SetTabIndex(_searchResults, 1);
             _searchResults.MouseLeftButtonUp += (s, e) => CommitSearchSelection();
             _searchResults.KeyDown += (s, e) => { if (e.Key == Key.Enter) { CommitSearchSelection(); e.Handled = true; } };
             DockPanel.SetDock(_searchResults, Dock.Top);
             dock.Children.Add(_searchResults);
+
+            // Build every nav button, About included, in _pages order (About last) so _navOrder
+            // -- what OnNavItemArrowKey's Up/Down walks -- matches the pane's visual order top to
+            // bottom. About is laid out separately, pinned below the free space with DockPanel's
+            // Dock.Bottom (AC-4), but it is built here rather than after the loop so the arrow-key
+            // order and the explicit TabIndex below both read top to bottom without a special case.
+            var navButtons = new List<Button>(_pages.Count);
+            for (int i = 0; i < _pages.Count; i++) navButtons.Add(BuildNavItem(_pages[i]));
+            for (int i = 0; i < navButtons.Count; i++) KeyboardNavigation.SetTabIndex(navButtons[i], 2 + i);
 
             var aboutPage = _pages[_pages.Count - 1];
             var aboutHost = new StackPanel();
             var divider = new Border { Height = 1, Margin = new Thickness(8, 8, 8, 4) };
             divider.SetResourceReference(Border.BackgroundProperty, "CardStrokeColorDefaultBrush");
             aboutHost.Children.Add(divider);
-            aboutHost.Children.Add(BuildNavItem(aboutPage));
+            aboutHost.Children.Add(navButtons[navButtons.Count - 1]);
             DockPanel.SetDock(aboutHost, Dock.Bottom);
             dock.Children.Add(aboutHost);
 
             var mainList = new StackPanel();
-            for (int i = 0; i < _pages.Count - 1; i++) mainList.Children.Add(BuildNavItem(_pages[i]));
-            var mainScroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = mainList };
+            for (int i = 0; i < navButtons.Count - 1; i++) mainList.Children.Add(navButtons[i]);
+            var mainScroller = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Content = mainList,
+                Focusable = false,   // a bare ScrollViewer is otherwise its own tab stop between the nav buttons and the page
+            };
             dock.Children.Add(mainScroller);   // added last with no Dock set: fills the remaining height, so About sits pinned below the free space (AC-4)
 
             return dock;
@@ -569,7 +587,7 @@ namespace QuickPane.UI.Settings
             DockPanel.SetDock(_headerHost, Dock.Top);
             dock.Children.Add(_headerHost);
 
-            _bodyScroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(32, 0, 32, 24) };
+            _bodyScroller = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(32, 0, 32, 24), Focusable = false };
             dock.Children.Add(_bodyScroller);
 
             border.Child = dock;
@@ -591,19 +609,16 @@ namespace QuickPane.UI.Settings
             // Breadcrumb: "<page title> > <sub title>", parent clickable, e.g. "Groups & profiles > Work".
             var row = new StackPanel { Orientation = Orientation.Horizontal };
 
-            var parent = new TextBlock
-            {
-                Text = pageTitle,
-                FontSize = 28,
-                FontWeight = FontWeights.SemiBold,
-                Cursor = Cursors.Hand,
-                Focusable = true,
-            };
-            parent.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-            AutomationProperties.SetName(parent, "Back to " + pageTitle);
+            // A plain Focusable TextBlock with hand-rolled Enter/Space gives UI Automation a Text
+            // control, not a Button, and a bare TextBlock carries no FocusVisualStyle of its own
+            // (the Fluent ring comes from the implicit Button style), so it is wrapped in the same
+            // SettingsCards.Invokable the nav items use: a real Button peer, Click/Enter/Space
+            // activation and the focus ring all for free, instead of reimplementing them here.
+            var parentText = new TextBlock { Text = pageTitle, FontSize = 28, FontWeight = FontWeights.SemiBold };
+            parentText.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
             Action goBack = () => { _subPage = null; RenderCurrentPage(); };
-            parent.MouseLeftButtonUp += (s, e) => goBack();
-            parent.KeyDown += (s, e) => { if (e.Key == Key.Enter || e.Key == Key.Space) goBack(); };
+            var parent = SettingsCards.Invokable(parentText, "Back to " + pageTitle, goBack);
+            parent.Cursor = Cursors.Hand;
 
             var sep = new TextBlock { Text = " › ", FontSize = 28, FontWeight = FontWeights.SemiBold };
             sep.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
