@@ -19,7 +19,7 @@ namespace QuickPane.UI.Settings.Pages
 
     /// <summary>App header, an Updates card (status, "Check for updates", Download when an update
     /// exists), a Links card (source, release notes, report an issue), a Licence card, and a
-    /// Third-party notices card (AC-18). Pinned to the bottom of the navigation pane (AC-4).</summary>
+    /// Third-party notices card. Pinned to the bottom of the navigation pane.</summary>
     internal sealed class AboutPage : SettingsPage
     {
         public override string Id => "about";
@@ -95,7 +95,7 @@ namespace QuickPane.UI.Settings.Pages
         // ---- updates card ---------------------------------------------------
 
         /// <summary>Carries over the old footer's version/update-check UI (SettingsPanel.xaml.cs,
-        /// line 1677-1755), with one behaviour change (AC-18): the check no longer runs every time
+        /// line 1677-1755), with one behaviour change: the check no longer runs every time
         /// Settings opens. It runs once when this page builds, and again whenever "Check for
         /// updates" is pressed, through the same <see cref="UpdateService"/> and off the UI thread
         /// (<see cref="UpdateService.CheckAsync"/> posts the HTTP call to <c>WorkQueue</c> itself).
@@ -182,7 +182,7 @@ namespace QuickPane.UI.Settings.Pages
             };
 
             checkButton.Click += (s, e) => runCheck();
-            runCheck();   // AC-18: runs once when the page opens, same as the old footer did on every open
+            runCheck();   // Runs once when the page opens, same as the old footer did on every open
 
             var border = ctx.Cards.CardShell(grid, hoverable: true);
             ctx.Cards.Register("updates", checkButton);
@@ -313,7 +313,7 @@ namespace QuickPane.UI.Settings.Pages
         /// <summary>Opens a URL in the user's default browser, exactly like the old footer's own
         /// <c>OpenUrl</c> (SettingsPanel.xaml.cs), with one deliberate tightening: <c>Process.Start</c>
         /// launches another process over COM/shell plumbing, so it goes through <c>WorkQueue</c>
-        /// (AC-23) rather than running inline on the UI thread as the old handler did.</summary>
+        /// rather than running inline on the UI thread as the old handler did.</summary>
         private static void OpenUrl(string url)
         {
             WorkQueue.Post(() =>

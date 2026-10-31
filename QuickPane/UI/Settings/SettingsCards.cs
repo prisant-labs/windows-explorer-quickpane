@@ -62,7 +62,7 @@ namespace QuickPane.UI.Settings
     ///
     /// One instance lives for the life of the <see cref="SettingsWindow"/> and is shared by every
     /// page through <see cref="SettingsPageContext.Cards"/>. It also owns the focus-target registry
-    /// that <see cref="FocusTarget"/> and the search box (AC-6) use to land on a specific control
+    /// that <see cref="FocusTarget"/> and the search box use to land on a specific control
     /// after a page opens; <see cref="BeginPage"/> clears that registry, and the window calls it
     /// right before building whichever page is about to show, since card ids are unique only within
     /// one page at a time.</summary>
@@ -74,8 +74,7 @@ namespace QuickPane.UI.Settings
         public const double CardPadding = 16;
 
         /// <summary>Below this card width, the control moves under the title instead of beside it.
-        /// Exposed so <see cref="Card"/>'s own reflow and a unit test agree on the same number
-        /// (AC-27).</summary>
+        /// Exposed so <see cref="Card"/>'s own reflow and a unit test agree on the same number.</summary>
         public const double WrapBelowWidth = 476;
 
         // Child rows line up under the parent card's title, roughly icon (20) + icon-to-label gap

@@ -14,17 +14,18 @@ namespace QuickPane.UI.Settings.Pages
     // BuildProfileFolderRow, SetProfileFolder/Recents/Width, ReloadIfActive), so every card here
     // carries over the same control-to-card mapping the old tab used.
 
-    /// <summary>Lists every profile as a card, with an "Add a profile" card (AC-9). Clicking a
+    /// <summary>Lists every profile as a card, with an "Add a profile" card. Clicking a
     /// profile opens its own sub-page through <see cref="SettingsPageContext.OpenSubPage"/>: Rename,
     /// Activate, Remove, the group list (Move up/down, Move to profile, Delete, Add group), and the
-    /// profile's own groups-folder, recents-count, and sidebar-width cards (AC-10, AC-11).
+    /// profile's own groups-folder, recents-count, and sidebar-width cards. Move to profile produces
+    /// the same result on disk as the old drag, with or without Ctrl.
     ///
     /// Gestures that the old window handled by dragging become buttons here: double-click-to-rename
     /// becomes an inline Rename row instead of a dialog, drag-to-reorder becomes Move up/Move down,
     /// and dragging a group onto another profile's column becomes "Move to profile" with an inline
     /// destination picker and a "Copy instead of move" checkbox.
     ///
-    /// AC-23: this page's own cards show instantly with no folder listing; every call into
+    /// This page's own cards show instantly with no folder listing; every call into
     /// <c>GroupStore.ListGroups</c> (a <c>Directory.GetDirectories</c> read) and every write
     /// (<c>CreateGroupFolder</c>, <c>DeleteGroupFolder</c>, <c>MoveGroupFolder</c>,
     /// <c>CopyGroupFolder</c>, <c>ReorderGroupFolders</c>) goes through <c>WorkQueue.Post</c>, with
@@ -52,7 +53,7 @@ namespace QuickPane.UI.Settings.Pages
             get
             {
                 // Only the page itself and the top-level "Add a profile" card are safe search
-                // targets: SearchEntries runs with no SettingsStore (AC-6), so it cannot enumerate
+                // targets: SearchEntries runs with no SettingsStore, so it cannot enumerate
                 // profiles, and a sub-page's cards cannot be reached anyway -- Navigate() (called by
                 // CommitSearchSelection) always drops any open sub-page.
                 yield return new SettingsSearchEntry(Id, null, Title, "Profiles, groups, and pinned folders.", "profile", "group", "pin");
@@ -404,7 +405,7 @@ namespace QuickPane.UI.Settings.Pages
 
         /// <summary>The inline destination picker that replaces dragging a group row onto another
         /// profile's column. Produces the same disk result as the old drag with or without Ctrl
-        /// held (AC-11): same-root without Copy checked is the only no-op, via
+        /// held: same-root without Copy checked is the only no-op, via
         /// <see cref="MoveOrCopy"/>.</summary>
         private FrameworkElement BuildMoveForm(SettingsPageContext ctx, int srcIndex, Profile srcProfile,
             string folder, string groupName, List<Tuple<Profile, int>> others, StackPanel slot)

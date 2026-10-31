@@ -7,8 +7,7 @@ namespace QuickPane.Tests
     /// <summary>The one decision in SshPage.cs that can be tested with no window and no real disk:
     /// which drive letter "Add a connection" picks next (SettingsPanel.xaml.cs's old
     /// NextFreeDriveLetter, lines 864-872). The existence check is injected so this needs no real
-    /// drive letters at all. See AC-27 ("every testable decision lives in an internal static
-    /// method").</summary>
+    /// drive letters at all. Every testable decision lives in an internal static method.</summary>
     [TestFixture]
     public class Settings94SshPageTests
     {

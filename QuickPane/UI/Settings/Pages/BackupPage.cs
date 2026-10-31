@@ -11,7 +11,7 @@ namespace QuickPane.UI.Settings.Pages
     // old footer's version/update-check UI does not move here; it moves to the About page instead.
 
     /// <summary>Back up and Restore buttons, with the result in an info bar. A successful restore
-    /// calls <see cref="SettingsPageContext.Rebuild"/>, as today (AC-17).
+    /// calls <see cref="SettingsPageContext.Rebuild"/>, as today.
     ///
     /// <see cref="SettingsStore.ExportTo"/> and <see cref="SettingsStore.ImportFrom"/> run
     /// synchronously on the UI thread, exactly like the old handlers at 068301b, and like every
@@ -22,9 +22,9 @@ namespace QuickPane.UI.Settings.Pages
     /// assume the thread that owns the window and the rest of the app's state, exactly the UI
     /// thread they already run on for every other caller. Moving either call to a
     /// <c>WorkQueue</c> worker would fire those handlers off-thread and let a background restore
-    /// swap <c>Current</c> out from under a UI-thread reader -- a correctness regression AC-23
-    /// does not ask for, since a settings.json file is a few KB of local JSON, not the SSH or
-    /// backup-of-a-large-file case AC-23 is aimed at. If a future change needs this off the UI
+    /// swap <c>Current</c> out from under a UI-thread reader -- a correctness regression the
+    /// off-UI-thread rule does not ask for, since a settings.json file is a few KB of local JSON,
+    /// not the SSH or backup-of-a-large-file case that rule is aimed at. If a future change needs this off the UI
     /// thread, <c>SettingsStore</c> itself needs a worker-safe deserialize step separate from the
     /// UI-thread adopt (Current swap + Save + event raise); that split is not made here.</summary>
     internal sealed class BackupPage : SettingsPage
@@ -85,7 +85,7 @@ namespace QuickPane.UI.Settings.Pages
 
                 if (settings.ImportFrom(dlg.FileName))
                 {
-                    // Rebuilds the whole window on this same page (AC-17), exactly as the old
+                    // Rebuilds the whole window on this same page, exactly as the old
                     // handler's BuildUI() call did.
                     _pendingRestoreMessage = RestoredMessage;
                     ctx.Rebuild();
@@ -111,7 +111,7 @@ namespace QuickPane.UI.Settings.Pages
 
         /// <summary>Matches the old status text verbatim (<c>SettingsPanel.xaml.cs</c>'s
         /// <c>BackupBlock</c> at 068301b: <c>"Backed up to " + dlg.FileName</c>). A pure decision,
-        /// so it is unit-testable on its own (AC-27).</summary>
+        /// so it is unit-testable on its own.</summary>
         internal static string BackedUpMessage(string path) => "Backed up to " + path;
 
         /// <summary>Matches the old status text verbatim (<c>"Backup failed: " + ex.Message</c>).</summary>

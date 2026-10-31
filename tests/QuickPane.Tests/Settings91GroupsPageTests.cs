@@ -9,7 +9,7 @@ namespace QuickPane.Tests
 {
     /// <summary>
     /// Covers #91's testable decisions (GroupsPage.Reordered, GroupsPage.MoveOrCopy) against
-    /// GroupStore in a temporary directory, per AC-10 and AC-11. These two methods are the page's
+    /// GroupStore in a temporary directory. These two methods are the page's
     /// Move up/down and Move-to-profile logic with no FrameworkElement involved, so they are
     /// covered directly rather than through the UI the page builds around them. Deletion
     /// (GroupStore.Recycle) is not exercised here: it calls the real Windows Recycle Bin.

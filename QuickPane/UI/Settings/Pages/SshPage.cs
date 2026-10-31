@@ -24,7 +24,7 @@ namespace QuickPane.UI.Settings.Pages
 
     /// <summary>An info bar plus setup cards (WinFsp, SSHFS-Win, winget commands) when either
     /// component is missing, one expandable card per connection with every field from the
-    /// inventory, and an "Add a connection" card (AC-16).</summary>
+    /// inventory, and an "Add a connection" card.</summary>
     internal sealed class SshPage : SettingsPage
     {
         private const string PageGlyph = "";   // Globe
@@ -108,7 +108,7 @@ namespace QuickPane.UI.Settings.Pages
             return root;
         }
 
-        // ---- install check (AC-23) ------------------------------------------
+        // ---- install check (off the UI thread) ------------------------------------------
 
         /// <summary>Runs <see cref="SshfsService.IsInstalled"/> (a disk check -- two
         /// <c>File.Exists</c> calls) off the UI thread, then hands the answer back through
@@ -213,7 +213,7 @@ namespace QuickPane.UI.Settings.Pages
                     ctx.Settings.Save();
                     // Renames the header in place rather than rebuilding: this runs from the box's
                     // LostKeyboardFocus, and a rebuild there would tear the tree down while focus
-                    // moves to the next control, dropping it (AC-22) or swallowing the click that
+                    // moves to the next control, dropping keyboard focus or swallowing the click that
                     // moved it. The old window only saved here (068301b line 711); names that fold
                     // the connection's name in catch up on the next rebuild, as they did then.
                     expander.Title = v;
@@ -329,7 +329,7 @@ namespace QuickPane.UI.Settings.Pages
             add.Click += (a, b) =>
             {
                 // Probing S: to Z: is up to eight Directory.Exists calls, and one on a disconnected
-                // mapped drive can block for seconds, so it runs on WorkQueue (AC-23); the add itself
+                // mapped drive can block for seconds, so it runs on WorkQueue; the add itself
                 // stays on the UI thread, which owns SettingsStore. The connection is added even if
                 // the user has left the page meanwhile, since they asked for it; only the redraw
                 // waits for this render to still be on screen.
@@ -421,7 +421,7 @@ namespace QuickPane.UI.Settings.Pages
             return box;
         }
 
-        // ---- testable decisions (AC-27) ---------------------------------------
+        // ---- testable decisions ---------------------------------------
 
         /// <summary>Picks the first unused drive letter S:-Z:, matching the old
         /// <c>NextFreeDriveLetter</c> (SettingsPanel.xaml.cs lines 864-872) exactly, but with the

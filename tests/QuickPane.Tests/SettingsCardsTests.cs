@@ -5,7 +5,7 @@ namespace QuickPane.Tests
 {
     /// <summary>The one decision in SettingsCards.cs that can be tested with no window: where a
     /// card's control moves under its title instead of staying beside it (below 476 px of card
-    /// width). See AC-27 ("every testable decision lives in an internal static method").</summary>
+    /// width). Every testable decision lives in an internal static method.</summary>
     [TestFixture]
     public class SettingsCardsTests
     {

@@ -9,14 +9,14 @@ namespace QuickPane.UI.Settings.Pages
     // The existing hotkey validation tests still pass unchanged.
 
     /// <summary>A toggle for "Let a keyboard shortcut move focus into the pane", and a Shortcut
-    /// card with a text box that validates as today and reverts to the last valid value (AC-15).
+    /// card with a text box that validates as today and reverts to the last valid value.
     ///
     /// Both controls write straight through <see cref="SettingsPageContext.Settings"/> and call
     /// <c>Save()</c> synchronously, exactly like the old checkbox and text box at commit 068301b
     /// (<c>SettingsPanel.xaml.cs</c>'s <c>HotkeysBlock</c>) and like every other settings.json
     /// writer in the app today (<c>SidebarControl.xaml.cs</c>, <c>AppBarHost.cs</c>,
     /// <c>RecentsSection.xaml.cs</c>): a settings.json write is small and local, unlike the
-    /// SSH/backup file work AC-23 means to keep off the UI thread, so this is "exactly as today"
+    /// SSH/backup file work that stays off the UI thread, so this is "exactly as today"
     /// rather than a new <c>WorkQueue</c> post.</summary>
     internal sealed class KeyboardPage : SettingsPage
     {
@@ -79,8 +79,7 @@ namespace QuickPane.UI.Settings.Pages
         /// <summary>The same decision as the old text box's <c>LostFocus</c> handler
         /// (<c>SettingsPanel.xaml.cs</c> at 068301b): a value <see cref="HotkeyService.TryParse"/>
         /// accepts is trimmed and kept; anything else reverts to <paramref name="lastValid"/> rather
-        /// than being stored. A pure decision with no UI, so it is unit-testable on its own
-        /// (AC-27).</summary>
+        /// than being stored. A pure decision with no UI, so it is unit-testable on its own.</summary>
         internal static string ValidateHotkeyText(string input, string lastValid, out bool accepted)
         {
             uint mods, vk;
