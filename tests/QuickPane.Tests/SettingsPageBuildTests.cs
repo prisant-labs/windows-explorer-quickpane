@@ -1,0 +1,276 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using NUnit.Framework;
+using QuickPane.Models;
+using QuickPane.Services;
+using QuickPane.UI.Settings;
+using QuickPane.UI.Settings.Pages;
+
+namespace QuickPane.Tests
+{
+    /// <summary>Builds every Settings page, the Groups profile sub-page, and the parts that only
+    /// appear once background work returns, with no window (#120). The 3.11.0.0 Pane page threw
+    /// on every build, and CI never saw it, because no test built a page.
+    ///
+    /// Each page gets a fake <see cref="ISettingsShell"/>, and SettingsStore and GroupStore point
+    /// at a temporary directory, including every profile's groups folder. Two seams keep the
+    /// pages off the real machine: About's update check never calls GitHub, and SSH's install
+    /// check never probes the disk. WorkQueue.PostUI drops work when no Application exists, so
+    /// the group rows and the SSH setup cards are built through their own internal entry points
+    /// rather than through the callbacks that would add them in the real window.</summary>
+    [TestFixture]
+    [Apartment(ApartmentState.STA)]
+    public class SettingsPageBuildTests
+    {
+        private sealed class FakeShell : ISettingsShell
+        {
+            public readonly List<Tuple<string, Func<SettingsPageContext, UIElement>>> SubPages =
+                new List<Tuple<string, Func<SettingsPageContext, UIElement>>>();
+            public int Rebuilds;
+
+            public int RenderGeneration { get { return 1; } }
+
+            public void OpenSubPage(string title, Func<SettingsPageContext, UIElement> build)
+            {
+                SubPages.Add(Tuple.Create(title, build));
+            }
+
+            public void Rebuild() { Rebuilds++; }
+        }
+
+        private sealed class Fixture : IDisposable
+        {
+            public readonly TempDir Temp = new TempDir();
+            public readonly SettingsStore Settings;
+            public readonly GroupStore Groups;
+            public readonly SettingsCards Cards = new SettingsCards();
+            public readonly FakeShell Shell = new FakeShell();
+            public readonly string WorkRoot, HomeRoot;
+
+            public Fixture()
+            {
+                WorkRoot = Path.Combine(Temp.Path, "WorkGroups");
+                HomeRoot = Path.Combine(Temp.Path, "HomeGroups");
+                Directory.CreateDirectory(Path.Combine(WorkRoot, "01_Projects", "01_Main"));
+                Directory.CreateDirectory(Path.Combine(WorkRoot, "02_Reference", "01_Main"));
+                Directory.CreateDirectory(HomeRoot);
+
+                Settings = new SettingsStore(Path.Combine(Temp.Path, "Settings"));
+                Settings.Load();
+                // The default groups path is the real %APPDATA%\QuickPane\Groups, which
+                // GroupsPage lists in the background as soon as it builds.
+                var s = Settings.Current;
+                s.GroupsPath = WorkRoot;
+                s.Profiles = new List<Profile>
+                {
+                    new Profile { Name = "Work", GroupsPath = WorkRoot },
+                    new Profile { Name = "Home", GroupsPath = HomeRoot },
+                };
+                s.ActiveProfileIndex = 0;
+                s.SshProfiles = new List<SshProfile>
+                {
+                    new SshProfile { Name = "Demo server", Hostname = "demo.example.com" },
+                };
+
+                Groups = new GroupStore(Settings, info => { });
+            }
+
+            public SettingsPageContext Context()
+            {
+                Cards.BeginPage();   // as SettingsWindow.RenderCurrentPage does before every build
+                return new SettingsPageContext(Settings, Groups, Cards, Shell, 1);
+            }
+
+            public List<SettingsPage> Pages(bool sshInstalled = true)
+            {
+                var pages = SettingsWindow.BuildPages();
+                foreach (var about in pages.OfType<AboutPage>()) about.CheckForUpdates = done => { };
+                foreach (var ssh in pages.OfType<SshPage>()) ssh.SetInstallState(sshInstalled);
+                return pages;
+            }
+
+            public SettingsPage Page(string id, bool sshInstalled = true)
+            {
+                return Pages(sshInstalled).Single(p => p.Id == id);
+            }
+
+            public void Dispose() { Temp.Dispose(); }
+        }
+
+        private static IEnumerable<string> PageIds()
+        {
+            return SettingsWindow.BuildPages().Select(p => p.Id);
+        }
+
+        // ---- every page ------------------------------------------------------
+
+        [TestCaseSource(nameof(PageIds))]
+        public void Page_Builds(string id)
+        {
+            using (var f = new Fixture())
+            {
+                var page = f.Page(id);
+                UIElement body = null;
+                Assert.DoesNotThrow(() => body = page.Build(f.Context()));
+                Assert.That(body, Is.Not.Null);
+            }
+        }
+
+        [TestCaseSource(nameof(PageIds))]
+        public void Page_BuildsTwice(string id)
+        {
+            // The window builds a page again on every visit and every Rebuild, with the same page
+            // instance, so state a page keeps between builds must survive a second one.
+            using (var f = new Fixture())
+            {
+                var page = f.Page(id);
+                page.Build(f.Context());
+                Assert.DoesNotThrow(() => page.Build(f.Context()));
+            }
+        }
+
+        [TestCaseSource(nameof(PageIds))]
+        public void Page_EveryInteractiveControlHasAnAccessibleName(string id)
+        {
+            using (var f = new Fixture())
+            {
+                var body = f.Page(id).Build(f.Context());
+                var unnamed = UnnamedControls(body);
+                Assert.That(unnamed, Is.Empty, "controls with no accessible name on the " + id + " page");
+            }
+        }
+
+        // ---- Groups profile sub-page ---------------------------------------
+
+        [TestCase("Work")]
+        [TestCase("Home")]
+        public void GroupsPage_ProfileCard_OpensASubPageThatBuilds(string profileName)
+        {
+            using (var f = new Fixture())
+            {
+                var body = f.Page("groups").Build(f.Context());
+                var card = Descendants(body).OfType<Button>()
+                    .Single(b => AutomationProperties.GetName(b) == "Open profile " + profileName);
+
+                card.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+
+                Assert.That(f.Shell.SubPages, Has.Count.EqualTo(1));
+                Assert.That(f.Shell.SubPages[0].Item1, Is.EqualTo(profileName));
+                UIElement sub = null;
+                Assert.DoesNotThrow(() => sub = f.Shell.SubPages[0].Item2(f.Context()));
+                Assert.That(sub, Is.Not.Null);
+                Assert.That(UnnamedControls(sub), Is.Empty, "controls with no accessible name on the " + profileName + " sub-page");
+            }
+        }
+
+        [Test]
+        public void GroupsPage_GroupRows_Build()
+        {
+            using (var f = new Fixture())
+            {
+                var page = (GroupsPage)f.Page("groups");
+                var profile = f.Settings.Current.Profiles[0];
+                var groups = GroupStore.ListGroups(f.WorkRoot);
+                Assert.That(groups, Has.Count.EqualTo(2), "fixture should list two groups");
+
+                FrameworkElement rows = null;
+                Assert.DoesNotThrow(() => rows = page.BuildGroupRows(f.Context(), 0, profile, groups));
+                Assert.That(rows, Is.Not.Null);
+                Assert.That(UnnamedControls(rows), Is.Empty, "controls with no accessible name in the group rows");
+            }
+        }
+
+        [Test]
+        public void GroupsPage_GroupRows_BuildWithNoGroups()
+        {
+            using (var f = new Fixture())
+            {
+                var page = (GroupsPage)f.Page("groups");
+                var profile = f.Settings.Current.Profiles[1];
+                Assert.DoesNotThrow(() => page.BuildGroupRows(f.Context(), 1, profile, new List<Tuple<string, string>>()));
+            }
+        }
+
+        // ---- states reached only after background work ----------------------
+
+        [Test]
+        public void SshPage_WithComponentsMissing_BuildsTheSetupCards()
+        {
+            using (var f = new Fixture())
+            {
+                var body = f.Page("ssh", sshInstalled: false).Build(f.Context());
+                Assert.That(Texts(body), Has.Some.EqualTo("SSH drives need two free components"));
+                Assert.That(UnnamedControls(body), Is.Empty, "controls with no accessible name on the SSH setup cards");
+            }
+        }
+
+        [Test]
+        public void AboutPage_EveryUpdateResult_UpdatesTheCard()
+        {
+            var results = new[]
+            {
+                null,
+                new UpdateCheckResult { Error = "The demo server did not answer." },
+                new UpdateCheckResult { Available = false },
+                new UpdateCheckResult { Available = true, Latest = new Version(99, 0, 0, 0), DownloadUrl = "https://example.com/QuickPane-99.0.0.0.exe" },
+            };
+            foreach (var result in results)
+            {
+                using (var f = new Fixture())
+                {
+                    var page = (AboutPage)f.Page("about");
+                    page.CheckForUpdates = done => done(result);
+                    UIElement body = null;
+                    Assert.DoesNotThrow(() => body = page.Build(f.Context()));
+                    Assert.That(Texts(body), Has.Some.EqualTo(AboutPage.StatusText(result)));
+                }
+            }
+        }
+
+        // ---- tree walking ----------------------------------------------------
+
+        private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+        {
+            var stack = new Stack<DependencyObject>();
+            stack.Push(root);
+            while (stack.Count > 0)
+            {
+                var node = stack.Pop();
+                yield return node;
+                foreach (var child in LogicalTreeHelper.GetChildren(node).OfType<DependencyObject>())
+                    stack.Push(child);
+            }
+        }
+
+        private static IEnumerable<string> Texts(DependencyObject root)
+        {
+            return Descendants(root).OfType<TextBlock>().Select(t => t.Text);
+        }
+
+        /// <summary>Every control a keyboard or screen-reader user can operate whose automation
+        /// peer reports no name. The peer is what Narrator and the sandbox jobs' click-by-name
+        /// read, so a button whose only content is text still counts as named.</summary>
+        private static List<string> UnnamedControls(DependencyObject root)
+        {
+            var unnamed = new List<string>();
+            foreach (var el in Descendants(root).OfType<Control>())
+            {
+                if (!(el is ButtonBase || el is TextBoxBase || el is PasswordBox || el is ComboBox || el is Slider))
+                    continue;
+                var peer = UIElementAutomationPeer.CreatePeerForElement(el);
+                string name = peer != null ? peer.GetName() : AutomationProperties.GetName(el);
+                if (string.IsNullOrWhiteSpace(name))
+                    unnamed.Add(el.GetType().Name + (el is ContentControl && ((ContentControl)el).Content is string ? " \"" + ((ContentControl)el).Content + "\"" : ""));
+            }
+            return unnamed;
+        }
+    }
+}

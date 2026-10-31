@@ -46,6 +46,17 @@ namespace QuickPane.UI.Settings.Pages
         private bool _installChecked;
         private bool _installed;
 
+        /// <summary>Records an install-check answer as if <see cref="StartInstallCheck"/> had
+        /// returned it, so the next Build shows (or skips) the setup cards with no disk check.
+        /// For tests: the real answer arrives through WorkQueue.PostUI, which a test host with no
+        /// Application never runs (#120).</summary>
+        internal void SetInstallState(bool installed)
+        {
+            _installCheckStarted = true;
+            _installChecked = true;
+            _installed = installed;
+        }
+
         // The newest SettingsPageContext this page was built with. StartInstallCheck's worker can
         // answer after the user has navigated away and then *back* to this page, which gives a
         // fresh context whose IsCurrent is true even though the stale ctx captured when the check
