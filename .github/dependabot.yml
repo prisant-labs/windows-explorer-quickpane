@@ -1,0 +1,21 @@
+# Weekly version updates. Each ecosystem's minor and patch bumps arrive as one grouped pull request,
+# and every Dependabot pull request must pass build-and-test like any other change to main.
+# A bump never adds a package: the app project takes no new NuGet package without the maintainer's
+# agreement (AGENTS.md). Security updates are switched on separately, in the repository settings.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        update-types: [minor, patch]
+
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        update-types: [minor, patch]
