@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Windows;
 using System.Windows.Automation;
@@ -164,6 +165,15 @@ namespace QuickPane.UI.Settings
         private ContentControl _headerHost;
         private ScrollViewer _bodyScroller;
 
+        // AC-23/AC-24 (#97): instrumentation only. Measures how long Settings takes to open (this
+        // constructor's start to the window's first real paint) and how long each page switch
+        // takes, so the sandbox can compare both against the 500 ms budget without guessing. Never
+        // read by anything other than the two log lines below -- no behavior depends on the value,
+        // and this does not itself move Settings onto its own UI thread; AC-24 says that decision
+        // waits for the measurement these two lines produce.
+        private readonly Stopwatch _openStopwatch = Stopwatch.StartNew();
+        private bool _openTimeLogged;
+
         public SettingsWindow(SettingsStore settings, GroupStore groups, ThemeService theme, System.Drawing.Icon appIcon)
         {
             _settings = settings;
@@ -210,6 +220,17 @@ namespace QuickPane.UI.Settings
             KeyDown += (s, e) => { if (e.Key == Key.Escape) Close(); };
             SourceInitialized += (s, e) => ApplyBackdrop();
             StateChanged += (s, e) => UpdateMaximizedMargin();
+
+            // ContentRendered is the window's first real paint, so it is the "open" half of the
+            // AC-24 budget. It can fire more than once (e.g. after a later layout pass), so
+            // _openTimeLogged keeps this to the first one, which is the number that matters.
+            ContentRendered += (s, e) =>
+            {
+                if (_openTimeLogged) return;
+                _openTimeLogged = true;
+                _openStopwatch.Stop();
+                Log.Info(FormatOpenTiming(_openStopwatch.ElapsedMilliseconds));
+            };
 
             // ApplyBackdrop reads theme.IsHighContrast, so it must be re-run after a live contrast
             // switch too, not just once at SourceInitialized. See the remark on ApplyBackdrop.
@@ -665,7 +686,8 @@ namespace QuickPane.UI.Settings
         /// previous page on screen with no explanation while navigating.</summary>
         private void RenderCurrentPage()
         {
-            _renderGeneration++;
+            int generation = ++_renderGeneration;
+            var switchStopwatch = Stopwatch.StartNew();
             var page = _pages.First(p => string.Equals(p.Id, _currentPageId, StringComparison.Ordinal));
             _cards.BeginPage();
             var ctx = new SettingsPageContext(_settings, _groups, _cards, this, _renderGeneration);
@@ -684,6 +706,36 @@ namespace QuickPane.UI.Settings
             _headerHost.Content = BuildHeader(page.Title, _subPage?.Item1);
             _bodyScroller.Content = body;
             SelectNav(page.Id);
+
+            // AC-23/AC-24 (#97): generation 1 is the window's very first render, already covered by
+            // the ContentRendered open-time log above, so only later navigations (page switches and
+            // sub-page opens) are timed here. The Loaded-priority dispatch waits for the new content
+            // to actually lay out and render before the clock stops, not just for this method to
+            // return; IsCurrent guards against a slower-to-render page that the user has since
+            // navigated away from logging a misleadingly long "switch" for the page now on screen.
+            if (generation > 1)
+            {
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+                {
+                    if (_renderGeneration != generation) return;
+                    switchStopwatch.Stop();
+                    Log.Info(FormatPageSwitchTiming(page.Id, switchStopwatch.ElapsedMilliseconds));
+                }));
+            }
+        }
+
+        /// <summary>The "Settings opened in N ms" log line (AC-24). A pure decision, so it is
+        /// unit-testable without a window.</summary>
+        internal static string FormatOpenTiming(long elapsedMs)
+        {
+            return "SettingsWindow: opened in " + elapsedMs + " ms";
+        }
+
+        /// <summary>The "switched to page '...' in N ms" log line (AC-23/AC-24). A pure decision,
+        /// so it is unit-testable without a window.</summary>
+        internal static string FormatPageSwitchTiming(string pageId, long elapsedMs)
+        {
+            return "SettingsWindow: switched to page '" + pageId + "' in " + elapsedMs + " ms";
         }
     }
 }
