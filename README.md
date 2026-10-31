@@ -36,6 +36,7 @@
 > - **Dialog clicks navigate first:** a pin click in an Open or Save dialog navigates before Recent Apps records the app, and startup no longer creates the groups folder on the UI thread. [3.10.0.9](docs/releases/3.10.0.9.md) ([#70](https://github.com/prisant-labs/windows-explorer-quickpane/issues/70), [#71](https://github.com/prisant-labs/windows-explorer-quickpane/issues/71))
 > - **No flicker while resizing:** dragging an Explorer window's border no longer makes the tree and the file list jump under the pane and back. The pane steps aside during the drag, so Explorer's own tree stays in view, and it returns on release. [3.10.0.11](https://github.com/prisant-labs/windows-explorer-quickpane/releases/tag/v3.10.0.11) ([#99](https://github.com/prisant-labs/windows-explorer-quickpane/issues/99), [#102](https://github.com/prisant-labs/windows-explorer-quickpane/issues/102))
 > - **Dialogs keep the pane inside:** a Save dialog that resizes itself as it opens, or that the user resizes, keeps the pane inside instead of moving it beside, and reopens at the same size each time. [3.10.0.11](https://github.com/prisant-labs/windows-explorer-quickpane/releases/tag/v3.10.0.11) ([#103](https://github.com/prisant-labs/windows-explorer-quickpane/issues/103))
+> - **Settings redesigned as a Windows 11 Settings page:** a navigation pane, search, cards, and a Mica backdrop replace the old tabbed panel, with buttons in place of drag and drop and full keyboard and screen reader support. [3.11.0.0](docs/releases/3.11.0.0.md) ([#89](https://github.com/prisant-labs/windows-explorer-quickpane/issues/89)-[#96](https://github.com/prisant-labs/windows-explorer-quickpane/issues/96))
 
 A folder sidebar for Windows File Explorer. QuickPane embeds a pinned-folders pane inside every Explorer window, so your groups, recent locations, drives, network shares, and WSL distros travel with the window you are already using. Pin it inside the window, float it beside the window, or run it as a slim screen-edge dock. Everything runs locally as a single tray app, no code is ever injected into Explorer, and all data stays in plain files under your user profile.
 
@@ -133,7 +134,7 @@ Right-click a folder while an app's Save or Open dialog is open and choose "Alwa
 
 ### Keyboard navigation
 
-An optional shortcut moves focus into the pane, where the arrow keys move between folders and Enter opens one. It stays off until it is switched on under Settings, Hotkeys, so no key combination is taken from the rest of the system by default.
+An optional shortcut moves focus into the pane, where the arrow keys move between folders and Enter opens one. It stays off until it is switched on under Settings, Keyboard, so no key combination is taken from the rest of the system by default.
 
 ### Profiles
 
@@ -141,8 +142,8 @@ Each profile is an independent workspace with its own groups folder, recents cou
 
 - Switch profiles from the tray icon's right-click menu or from the profile tab row under the title
 - The profile tab row can auto-hide, sliding out when the cursor is over the header
-- Manage profiles in a multi-column settings layout with add, remove, and rename
-- Drag a group between profile columns to move it, or hold Ctrl to drop a copy so one group can live in more than one profile
+- Manage profiles on the Settings window's Groups & profiles page, with cards for add, rename, and remove
+- Move a group to another profile with a destination picker and a "Copy instead of move" checkbox, so one group can live in more than one profile
 
 ### Remembered layout
 

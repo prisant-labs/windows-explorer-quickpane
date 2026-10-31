@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.11.0.0] - Unreleased
+
+Settings is now a Windows 11 Settings-style window, with its own navigation pane, search box, and cards, in place of the old tabbed panel.
+
+### Added
+- The Settings window now has a navigation pane, a search box that jumps straight to a setting, a breadcrumb for sub-pages, and a Mica backdrop on Windows 11. Its visual style is ported from Microsoft's WPF Fluent theme and stays scoped to the Settings window, so the pane keeps its existing look ([#89](https://github.com/prisant-labs/windows-explorer-quickpane/issues/89), [#90](https://github.com/prisant-labs/windows-explorer-quickpane/issues/90)).
+- Eight pages replace the old tabs: Groups & profiles, Pane, Pane sections, Recent apps, Keyboard, Backup & restore, SSH drives, and About ([#90](https://github.com/prisant-labs/windows-explorer-quickpane/issues/90), [#91](https://github.com/prisant-labs/windows-explorer-quickpane/issues/91), [#92](https://github.com/prisant-labs/windows-explorer-quickpane/issues/92), [#93](https://github.com/prisant-labs/windows-explorer-quickpane/issues/93), [#94](https://github.com/prisant-labs/windows-explorer-quickpane/issues/94), [#95](https://github.com/prisant-labs/windows-explorer-quickpane/issues/95)).
+- Every Settings control now has an accessible name, and keyboard navigation moves through the navigation pane, then the open page, in reading order, with a visible focus ring throughout ([#96](https://github.com/prisant-labs/windows-explorer-quickpane/issues/96)).
+
+### Changed
+- The update check on the About page now runs only when that page opens or you press "Check for updates," not every time Settings opens ([#95](https://github.com/prisant-labs/windows-explorer-quickpane/issues/95)).
+- Renaming a profile, reordering its groups, and moving a group to another profile now use buttons, such as Rename, Move up, Move down, and Move to profile, instead of drag and drop ([#91](https://github.com/prisant-labs/windows-explorer-quickpane/issues/91)).
+- Reordering pane sections now uses Move up and Move down buttons instead of dragging a row ([#92](https://github.com/prisant-labs/windows-explorer-quickpane/issues/92)).
+- Settings now writes how long it took to open, and how long it took to switch pages, to the log, to help decide whether it needs its own UI thread ([#97](https://github.com/prisant-labs/windows-explorer-quickpane/issues/97)).
+
 ## [3.10.0.11] - 2026-10-30
 
 ### Fixed
