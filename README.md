@@ -247,8 +247,18 @@ Groups are stored as ordinary folders: a **group** is a folder under `Groups\`, 
 
 - **No cloud sync**: everything stays on your computer
 - **No accounts**: no login or registration
-- **No telemetry**: QuickPane makes no external network requests
+- **No telemetry**: QuickPane sends no usage data, crash reports, or analytics anywhere
 - **Readable formats**: a JSON settings file and ordinary Windows shortcuts you can open and back up anywhere
+
+QuickPane makes one network request of its own, an update check:
+
+- **What it sends**: an HTTPS GET to `api.github.com` for this fork's latest release, with the header `User-Agent: QuickPane/<version>`. Like any web request, it shows GitHub your IP address. It sends nothing else.
+- **When it runs**: only when you open the About page in Settings, or press "Check for updates" there. Before 3.11.0.0 it also ran every time Settings opened.
+
+Two other features reach the network only when you use them:
+
+- **Links**: the About page's links and the SSH drives page's download buttons open in your default browser when you click them.
+- **SSH drives**: `sshfs` connects to the servers you enter, when you connect a drive.
 
 ### settings.json format
 
