@@ -65,11 +65,15 @@ namespace QuickPane.UI.Settings.Pages
             }
         }
 
+        /// <summary>The update check the Updates card runs on build and on "Check for updates".
+        /// A test that builds this page swaps it out, because the real one calls GitHub (#120).</summary>
+        internal Action<Action<UpdateCheckResult>> CheckForUpdates { get; set; } = UpdateService.CheckAsync;
+
         public override UIElement Build(SettingsPageContext ctx)
         {
             var panel = new StackPanel();
             panel.Children.Add(BuildHeaderCard(ctx));
-            panel.Children.Add(BuildUpdatesCard(ctx));
+            panel.Children.Add(BuildUpdatesCard(ctx, CheckForUpdates));
             panel.Children.Add(BuildLinksCard(ctx));
             panel.Children.Add(ctx.Cards.Card("licence", GlyphDocument, "Licence", LicenceText, null));
             panel.Children.Add(ctx.Cards.Card("third-party-notices", GlyphCertificate, "Third-party notices", ThirdPartyNoticeText, null));
@@ -103,7 +107,7 @@ namespace QuickPane.UI.Settings.Pages
         /// is public, so this builds its own three-column layout (mirroring the shared card's icon /
         /// text / control shape) and registers it itself instead of asking the page contract for a
         /// new card-building overload.</summary>
-        private static FrameworkElement BuildUpdatesCard(SettingsPageContext ctx)
+        private static FrameworkElement BuildUpdatesCard(SettingsPageContext ctx, Action<Action<UpdateCheckResult>> checkForUpdates)
         {
             var icon = GlyphText(GlyphSync, 20);
             icon.Margin = new Thickness(0, 0, 20, 0);
@@ -155,7 +159,7 @@ namespace QuickPane.UI.Settings.Pages
                 checkButton.IsEnabled = false;
                 downloadButton.Visibility = Visibility.Collapsed;
 
-                UpdateService.CheckAsync(r =>
+                checkForUpdates(r =>
                 {
                     // The page may have navigated away (or rebuilt) while the check was in flight;
                     // touching controls from a stale render would act on the page that happens to be

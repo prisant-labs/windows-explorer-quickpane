@@ -287,7 +287,9 @@ namespace QuickPane.UI.Settings.Pages
 
         // ---- group rows -------------------------------------------------
 
-        private FrameworkElement BuildGroupRows(SettingsPageContext ctx, int index, Profile p, List<Tuple<string, string>> groups)
+        // Internal for the page-build test (#120): BuildProfile adds these rows only once the
+        // background listing comes back through WorkQueue.PostUI, which never runs in a test host.
+        internal FrameworkElement BuildGroupRows(SettingsPageContext ctx, int index, Profile p, List<Tuple<string, string>> groups)
         {
             var host = new StackPanel();
             for (int i = 0; i < groups.Count; i++)

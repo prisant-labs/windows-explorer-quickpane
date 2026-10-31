@@ -58,6 +58,19 @@ namespace QuickPane.UI.Settings
         public abstract UIElement Build(SettingsPageContext ctx);
     }
 
+    /// <summary>The three things a page asks of the window, through <see cref="SettingsPageContext"/>.
+    /// <see cref="SettingsWindow"/> is the only real implementation; a test supplies its own, so
+    /// every page can be built with no window at all (#120).</summary>
+    internal interface ISettingsShell
+    {
+        /// <summary>Bumped on every render; see <see cref="SettingsPageContext.IsCurrent"/>.</summary>
+        int RenderGeneration { get; }
+
+        void OpenSubPage(string title, Func<SettingsPageContext, UIElement> build);
+
+        void Rebuild();
+    }
+
     /// <summary>Everything a page needs from the shell, handed to <see cref="SettingsPage.Build"/>
     /// and to every <see cref="SettingsSearchEntry"/> focus target. A page never talks to
     /// <see cref="SettingsWindow"/> directly.</summary>
@@ -73,15 +86,15 @@ namespace QuickPane.UI.Settings
         /// whole window; call <c>Cards.Register</c> only through a builder, never directly.</summary>
         public SettingsCards Cards { get; }
 
-        private readonly SettingsWindow _window;
+        private readonly ISettingsShell _shell;
         private readonly int _generation;
 
-        public SettingsPageContext(SettingsStore settings, GroupStore groups, SettingsCards cards, SettingsWindow window, int generation)
+        public SettingsPageContext(SettingsStore settings, GroupStore groups, SettingsCards cards, ISettingsShell shell, int generation)
         {
             Settings = settings;
             Groups = groups;
             Cards = cards;
-            _window = window;
+            _shell = shell;
             _generation = generation;
         }
 
@@ -92,7 +105,7 @@ namespace QuickPane.UI.Settings
         /// this before touching the tree, registering a card, or calling <see cref="Rebuild"/> or
         /// <see cref="OpenSubPage"/>, any of which would otherwise act on whichever page happens to
         /// be current instead of the one that queued the work.</summary>
-        public bool IsCurrent { get { return _window.RenderGeneration == _generation; } }
+        public bool IsCurrent { get { return _shell.RenderGeneration == _generation; } }
 
         /// <summary>Opens a sub-page under the one currently showing, with a breadcrumb reading
         /// "&lt;this page's title&gt; &gt; title". <paramref name="build"/> runs again on every
@@ -106,7 +119,7 @@ namespace QuickPane.UI.Settings
         /// the supported way to re-render it.</summary>
         public void OpenSubPage(string title, Func<SettingsPageContext, UIElement> build)
         {
-            _window.OpenSubPage(title, build);
+            _shell.OpenSubPage(title, build);
         }
 
         /// <summary>Rebuilds the window on the same top-level page (AC-7), e.g. after Restore
@@ -114,7 +127,7 @@ namespace QuickPane.UI.Settings
         /// profile or connection, and a restore may have removed exactly that one.</summary>
         public void Rebuild()
         {
-            _window.Rebuild();
+            _shell.Rebuild();
         }
     }
 
@@ -129,7 +142,7 @@ namespace QuickPane.UI.Settings
     /// line. Every colour comes from a Fluent <c>DynamicResource</c> key, applied through
     /// <see cref="FluentThemeService"/> into this window's own <see cref="Window.Resources"/> and
     /// nowhere else (AC-20); nothing here reads <c>ThemeService.IsDark</c> to pick a colour.</summary>
-    public sealed class SettingsWindow : Window
+    public sealed class SettingsWindow : Window, ISettingsShell
     {
         private const double NavWidth = 272;        // 260-280 px is acceptable
         private const double TitleBarHeight = 48;
@@ -153,7 +166,7 @@ namespace QuickPane.UI.Settings
         /// whether it is still the one on screen (<see cref="SettingsPageContext.IsCurrent"/>).</summary>
         private int _renderGeneration;
 
-        internal int RenderGeneration { get { return _renderGeneration; } }
+        int ISettingsShell.RenderGeneration { get { return _renderGeneration; } }
 
         private readonly List<Button> _navOrder = new List<Button>();
         private readonly Dictionary<string, Border> _navItemsByPageId = new Dictionary<string, Border>(StringComparer.Ordinal);
@@ -663,7 +676,7 @@ namespace QuickPane.UI.Settings
 
         /// <summary>Opens a sub-page under the page currently on screen. Called only through
         /// <see cref="SettingsPageContext.OpenSubPage"/>.</summary>
-        internal void OpenSubPage(string title, Func<SettingsPageContext, UIElement> build)
+        void ISettingsShell.OpenSubPage(string title, Func<SettingsPageContext, UIElement> build)
         {
             _subPage = Tuple.Create(title, build);
             RenderCurrentPage();
@@ -673,7 +686,7 @@ namespace QuickPane.UI.Settings
         /// page id, not an open sub-page -- a sub-page usually names one profile or connection, and
         /// the rebuild that triggers this (e.g. a completed Restore) is exactly the case where that
         /// one thing may no longer exist. Called only through <see cref="SettingsPageContext.Rebuild"/>.</summary>
-        internal void Rebuild()
+        void ISettingsShell.Rebuild()
         {
             _subPage = null;
             RenderCurrentPage();
