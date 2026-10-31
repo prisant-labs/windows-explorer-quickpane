@@ -53,6 +53,18 @@ The tests live in `tests/QuickPane.Tests`, an SDK-style `net48` NUnit project. I
 
 Only one copy of QuickPane runs at a time, because a single-instance mutex guards it. A development build therefore replaces the installed copy while it runs.
 
+`scripts/dev-run.ps1` does the steps below for you. It builds, backs up your settings to `%LOCALAPPDATA%\QuickPane-dev-backups`, closes the running copy with `--exit`, and runs the build. When you close the build from its tray icon, it starts the installed copy again. It waits through a watchdog relaunch, so a crash during the test does not bring the installed copy back early. If you stop the script before then, run it with `-RestoreInstalled`.
+
+```powershell
+pwsh -File scripts/dev-run.ps1              # build Release, then run it
+pwsh -File scripts/dev-run.ps1 -NoBuild     # run the existing build
+pwsh -File scripts/dev-run.ps1 -RestoreInstalled
+```
+
+A build run from `bin\` lasts until you sign out. Windows starts the installed copy at sign-in, because the Run key points at `%LOCALAPPDATA%\QuickPane`.
+
+The manual steps, if you prefer them:
+
 1. Back up `%APPDATA%\QuickPane`. A development build reads and writes the same settings and groups.
 2. Close the installed copy: `& "$env:LOCALAPPDATA\QuickPane\QuickPane.exe" --exit`. Do not kill the process. A kill skips the layout restore, and the watchdog process restarts the app.
 3. Run `QuickPane\bin\x64\Release\QuickPane.exe`.

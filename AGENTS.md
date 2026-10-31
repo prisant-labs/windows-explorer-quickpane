@@ -18,7 +18,7 @@ A change is not done until the build succeeds with no errors and every test pass
 
 ## Hard rules
 
-- **Never run `QuickPane.exe`** on a developer's desktop unless the developer asks. A single-instance mutex means a second copy, or `--exit`, acts on the developer's own running copy. Use an isolated environment such as Windows Sandbox for UI checks.
+- **Never run `QuickPane.exe`** on a developer's desktop unless the developer asks. A single-instance mutex means a second copy, or `--exit`, acts on the developer's own running copy. Use an isolated environment such as Windows Sandbox for UI checks. For the same reason, never run `scripts/dev-run.ps1`: it is for people trying a build on their own desktop.
 - **C# 7.3 only.** No switch expressions, `is not` patterns, nullable reference types, `using` declarations, ranges or indices, records, `init`, or target-typed `new()`.
 - **Keep slow work off the UI thread.** In inside mode the UI thread shares Explorer's input queue, so a blocking call there stalls Explorer too. Post disk, network, and cross-process COM work with `WorkQueue.Post`. Post a folder navigation the user clicked with `WorkQueue.PostNavigation`, and put nothing else on that lane. When the UI must wait for an existence check, use `PathStatus.FolderExistsWithin`.
 - **Hook window events through `WinEventHook`.** Never call `SetWinEventHook` directly, because `WinEventHook` shares one native hook per event range. Cap any cache keyed by path with `LruCache`, and write logs only through `Log`.
@@ -52,7 +52,7 @@ A change is not done until the build succeeds with no errors and every test pass
 | `QuickPane/Themes/Fluent/` | A ported Microsoft Fluent theme, scoped to the Settings window only. See its `NOTICE.md`. |
 | `QuickPane/Models/Models.cs` | The settings and group data model. |
 | `tests/QuickPane.Tests/` | Unit tests. |
-| `scripts/` | Build and test scripts. |
+| `scripts/` | Build, test, and packaging scripts, and `dev-run.ps1` for people trying a build on their own desktop. |
 
 The "Traps in the code" table in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) lists the behaviors that have caused bugs, such as Windows 11 tabs, keyboard focus, file dialogs, profile switches, and pane lifetime. Read it before changing anything in `Explorer/`, `Interop/`, a pane section, `GroupStore`, or the Settings window.
 
