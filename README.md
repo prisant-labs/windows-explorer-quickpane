@@ -355,7 +355,9 @@ QuickPane/
     │   ├── ShellLink.cs       # Read and write .lnk shortcuts
     │   ├── FileDropOps.cs     # Shell move/copy/shortcut drops
     │   ├── ThemeService.cs    # Dark / light theming
+    │   ├── FluentThemeService.cs # Ported Fluent theme, scoped to the Settings window
     │   └── Log.cs
+    ├── Themes/Fluent/         # Ported Microsoft WPF Fluent theme (see NOTICE.md below)
     └── UI/
         ├── SidebarControl.xaml(.cs)  # The pane shell
         ├── GroupSection.xaml(.cs)    # A group with its tabs
@@ -364,7 +366,7 @@ QuickPane/
         ├── ShellRootSection.cs       # Network and Linux roots
         ├── FolderItem.xaml(.cs)      # One folder row
         ├── FolderTreeNode.cs         # A lazy tree node
-        ├── SettingsPanel.xaml(.cs)   # Settings
+        ├── Settings/                 # The native Settings window, its cards, and its pages
         ├── GroupPickerWindow.xaml(.cs) # Pick a group when pinning
         ├── TextPrompt.cs             # Top-level prompts for text entry
         ├── DropLineAdorner.cs        # Reorder drop line
@@ -384,6 +386,14 @@ QuickPane/
 ## License
 
 MIT, see the [LICENSE](LICENSE) file for details.
+
+### Third-party code
+
+The Settings window's visual style (`QuickPane/Themes/Fluent/`) is ported from Microsoft's
+WPF Fluent theme (`dotnet/wpf`, MIT), itself built from the open-source
+[WPF-UI](https://github.com/lepoco/wpfui) project. See
+[`QuickPane/Themes/Fluent/NOTICE.md`](QuickPane/Themes/Fluent/NOTICE.md) for the source
+commit, the ported files, and both copyright notices.
 
 ---
 

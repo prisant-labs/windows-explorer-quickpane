@@ -402,8 +402,14 @@ namespace QuickPane
                 WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.CanResize,
                 ShowInTaskbar = true,
-                Content = panel
             };
+            // Merges the ported Microsoft Fluent styles (QuickPane/Themes/Fluent/NOTICE.md) into
+            // THIS window's own Resources, before Content is set so the implicit styles are
+            // already in scope when the panel enters the tree. Never merge into
+            // Application.Current.Resources: ThemeService does that for QuickPane's own theme,
+            // and every Explorer pane inherits whatever lives there.
+            FluentThemeService.Attach(_settingsWindow, Theme);
+            _settingsWindow.Content = panel;
             _settingsWindow.Closed += (s, a) => _settingsWindow = null;
             Theme.AttachWindow(_settingsWindow);
             _settingsWindow.Show();
