@@ -9,23 +9,20 @@ using QuickPane.Services;
 
 namespace QuickPane.UI.Settings.Pages
 {
-    // Owner: #91 (Groups & profiles page and profile sub-pages, with Move to profile). Covers
-    // AC-9, AC-10, AC-11. Matched line by line against SettingsPanel.xaml.cs at commit 068301b
-    // (BuildProfileColumn, BuildProfileGroupRow, OnGroupRowsDrop, CommitGroupOrder, OnProfileDrop,
-    // BuildAddProfileColumn, BuildProfileFolderRow, SetProfileFolder/Recents/Width, ReloadIfActive).
-    // See the README's "Settings inventory" (_local/ux/2026-10-30_settings-native/README.md) for
-    // the exact control-to-card mapping this page carries over.
+    // Matched line by line against SettingsPanel.xaml.cs at commit 068301b (BuildProfileColumn,
+    // BuildProfileGroupRow, OnGroupRowsDrop, CommitGroupOrder, OnProfileDrop, BuildAddProfileColumn,
+    // BuildProfileFolderRow, SetProfileFolder/Recents/Width, ReloadIfActive), so every card here
+    // carries over the same control-to-card mapping the old tab used.
 
     /// <summary>Lists every profile as a card, with an "Add a profile" card (AC-9). Clicking a
     /// profile opens its own sub-page through <see cref="SettingsPageContext.OpenSubPage"/>: Rename,
     /// Activate, Remove, the group list (Move up/down, Move to profile, Delete, Add group), and the
     /// profile's own groups-folder, recents-count, and sidebar-width cards (AC-10, AC-11).
     ///
-    /// Gestures that the old window handled by dragging become buttons here, per the inventory and
-    /// the prototype: double-click-to-rename becomes an inline Rename row (not a dialog, matching
-    /// the prototype's startInlineRename), drag-to-reorder becomes Move up/Move down, and dragging a
-    /// group onto another profile's column becomes "Move to profile" with an inline destination
-    /// picker and a "Copy instead of move" checkbox (prototype's openMoveForm).
+    /// Gestures that the old window handled by dragging become buttons here: double-click-to-rename
+    /// becomes an inline Rename row instead of a dialog, drag-to-reorder becomes Move up/Move down,
+    /// and dragging a group onto another profile's column becomes "Move to profile" with an inline
+    /// destination picker and a "Copy instead of move" checkbox.
     ///
     /// AC-23: this page's own cards show instantly with no folder listing; every call into
     /// <c>GroupStore.ListGroups</c> (a <c>Directory.GetDirectories</c> read) and every write
@@ -40,8 +37,7 @@ namespace QuickPane.UI.Settings.Pages
         public override string Id => "groups";
         public override string Title => "Groups & profiles";
 
-        // Segoe Fluent Icons "People" glyph. A first pass, unverified against the actual font (as
-        // the shell worker flagged for its own nav glyphs) -- see #96.
+        // Segoe Fluent Icons People
         public override string Glyph => "";
 
         private const string GlyphProfile = "";      // People
@@ -58,7 +54,7 @@ namespace QuickPane.UI.Settings.Pages
                 // Only the page itself and the top-level "Add a profile" card are safe search
                 // targets: SearchEntries runs with no SettingsStore (AC-6), so it cannot enumerate
                 // profiles, and a sub-page's cards cannot be reached anyway -- Navigate() (called by
-                // CommitSearchSelection) always drops any open sub-page. Noted for the main session.
+                // CommitSearchSelection) always drops any open sub-page.
                 yield return new SettingsSearchEntry(Id, null, Title, "Profiles, groups, and pinned folders.", "profile", "group", "pin");
                 yield return new SettingsSearchEntry(Id, AddProfileCardId, "Add a profile", "Start another independent workspace.", "profile", "add", "new profile");
             }
@@ -258,8 +254,7 @@ namespace QuickPane.UI.Settings.Pages
         {
             // Not Cards.PathField: that helper makes the box read-only whenever a Browse handler is
             // given, but the old row (068301b lines 1202-1221) commits a typed-in path too, on Enter
-            // or on losing focus. Built by hand here so that behavior survives unchanged; flagged for
-            // the main session in case a later page wants an editable PathField variant.
+            // or on losing focus. Built by hand here so that behavior survives unchanged.
             string boxName = "Groups folder, " + p.Name;
             var box = new TextBox { Text = p.GroupsPath, MinWidth = 160 };
             AutomationProperties_SetName(box, boxName);
@@ -406,8 +401,8 @@ namespace QuickPane.UI.Settings.Pages
         }
 
         /// <summary>The inline destination picker that replaces dragging a group row onto another
-        /// profile's column (prototype: openMoveForm). Produces the same disk result as the old drag
-        /// with or without Ctrl held (AC-11): same-root without Copy checked is the only no-op, via
+        /// profile's column. Produces the same disk result as the old drag with or without Ctrl
+        /// held (AC-11): same-root without Copy checked is the only no-op, via
         /// <see cref="MoveOrCopy"/>.</summary>
         private FrameworkElement BuildMoveForm(SettingsPageContext ctx, int srcIndex, Profile srcProfile,
             string folder, string groupName, List<Tuple<Profile, int>> others, StackPanel slot)

@@ -9,13 +9,12 @@ using QuickPane.Services;
 
 namespace QuickPane.UI.Settings.Pages
 {
-    // Owner: #95 (About page, with the update check moved from the footer). Covers AC-18. See the
-    // README's "Settings inventory" for the footer content this page must carry over from
-    // SettingsPanel.xaml.cs (line 1677-1755), and the old code at commit 068301b. AC-18 changes the
-    // update check from running every time Settings opens to running only when this page opens or
-    // its button is pressed -- keep that change; do not restore the old timing.
+    // Carries over the footer content from SettingsPanel.xaml.cs (line 1677-1755) at commit
+    // 068301b, except for one deliberate change: the update check used to run every time Settings
+    // opened, and now runs only when this page opens or its "Check for updates" button is pressed.
+    // Do not restore the old timing.
     //
-    // SearchEntries declares the entries AC-6 requires ("update" and "version" must find About);
+    // SearchEntries lists "update" and "version" as keywords so a search for either finds About;
     // see SettingsSearchIndexTests for the test that pins this down.
 
     /// <summary>App header, an Updates card (status, "Check for updates", Download when an update
@@ -29,8 +28,7 @@ namespace QuickPane.UI.Settings.Pages
 
         // ---- glyphs -----------------------------------------------------
         //
-        // Segoe Fluent Icons code points, picked the same way the shell's own nav glyphs were: a
-        // first pass, unverified against the real icon map. Flagged for #96 along with the rest.
+        // Segoe Fluent Icons code points for the cards below.
         private const string GlyphInfo = "";      // Info (shared with the nav item above)
         private const string GlyphSync = "";      // Sync
         private const string GlyphLink = "";       // Link
@@ -218,8 +216,8 @@ namespace QuickPane.UI.Settings.Pages
 
         /// <summary>Source code, release notes, and report-an-issue, each opening the default
         /// browser (new, not carried over from the old footer). One bordered block with the three
-        /// rows divided by a hairline, matching the prototype's merged "qp-expander"-style card
-        /// rather than three separate cards with gaps between them.</summary>
+        /// rows divided by a hairline, like a single merged card, rather than three separate cards
+        /// with gaps between them.</summary>
         private static FrameworkElement BuildLinksCard(SettingsPageContext ctx)
         {
             var rows = new StackPanel();

@@ -5,10 +5,8 @@ using QuickPane.Services;
 
 namespace QuickPane.UI.Settings.Pages
 {
-    // Owner: #93 (Keyboard and Backup & restore pages). Covers AC-15, AC-17. See the README's
-    // "Settings inventory" for every control this page must carry over from
-    // SettingsPanel.xaml.cs's "Hotkeys" tab, and the old code at commit 068301b. The existing
-    // hotkey validation tests must still pass unchanged.
+    // Carries over every control from SettingsPanel.xaml.cs's "Hotkeys" tab, at commit 068301b.
+    // The existing hotkey validation tests still pass unchanged.
 
     /// <summary>A toggle for "Let a keyboard shortcut move focus into the pane", and a Shortcut
     /// card with a text box that validates as today and reverts to the last valid value (AC-15).

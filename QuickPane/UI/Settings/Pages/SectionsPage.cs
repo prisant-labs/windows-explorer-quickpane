@@ -8,9 +8,8 @@ using QuickPane.Models;
 
 namespace QuickPane.UI.Settings.Pages
 {
-    // Owner: #92 (Pane, Pane sections, and Recent apps pages). Covers AC-12, AC-13, AC-14. See the
-    // README's "Settings inventory" for every control this page must carry over from
-    // SettingsPanel.xaml.cs's "Pane" tab (right column), and the old code at commit 068301b.
+    // Carries over every control from SettingsPanel.xaml.cs's "Pane" tab (right column), at commit
+    // 068301b.
 
     /// <summary>One card per pane section, each with a visibility toggle and Move up / Move down
     /// buttons in place of today's drag-reorder (AC-13). Visibility reads and writes the same
@@ -26,7 +25,7 @@ namespace QuickPane.UI.Settings.Pages
     {
         public override string Id => "sections";
         public override string Title => "Pane sections";
-        public override string Glyph => "";   // Bulleted list (first pass, unverified - see #96)
+        public override string Glyph => "";   // Segoe Fluent Icons Bulleted list
 
         public override IEnumerable<SettingsSearchEntry> SearchEntries
         {
@@ -74,9 +73,8 @@ namespace QuickPane.UI.Settings.Pages
                 string friendly = Friendly(sec.Type);
                 int index = i;   // captured per-iteration
 
-                // Repainted after a toggle, as the prototype's toggleSection does: the card's
-                // "Shown in the pane" / "Hidden from the pane" description is fixed text, so
-                // without this it keeps describing the old state.
+                // Repainted after a toggle: the card's "Shown in the pane" / "Hidden from the pane"
+                // description is fixed text, so without this it keeps describing the old state.
                 var toggle = cards.Toggle(sec.Visible, on =>
                 {
                     sec.Visible = on;

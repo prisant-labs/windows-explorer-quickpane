@@ -115,8 +115,8 @@ namespace QuickPane.Tests
         {
             // The colour-accent AccentPalette registry value exists on nearly every Windows
             // install, in or out of high contrast. ApplyAccent must not read it under high
-            // contrast: every key should be the flat system Highlight colour (SPEC.md's High
-            // contrast section), regardless of what AccentPalette holds, and regardless of the
+            // contrast: every key should be the flat system Highlight colour, as Windows itself
+            // uses under high contrast, regardless of what AccentPalette holds, and regardless of the
             // accent passed in (chosen here to be neither Highlight nor a plausible accent).
             var highlight = System.Drawing.SystemColors.Highlight;
             var expected = Color.FromRgb(highlight.R, highlight.G, highlight.B);

@@ -56,9 +56,9 @@ namespace QuickPane.UI.Settings
 
     /// <summary>Builds every shared Settings control: the settings card, the expander card, child
     /// rows, the toggle switch, the number box, the info bar, and the subtle icon button. Every
-    /// colour comes from a Fluent <c>DynamicResource</c> key (Foundation rule 4 in the 3.11 plan),
-    /// never from <c>App.Theme.IsDark</c> or a QuickPane style key, so a theme change updates these
-    /// controls live and nothing here can leak the old Settings look into the pane.
+    /// colour comes from a Fluent <c>DynamicResource</c> key, never from <c>App.Theme.IsDark</c> or
+    /// a QuickPane style key, so a theme change updates these controls live and nothing here can
+    /// leak the old Settings look into the pane.
     ///
     /// One instance lives for the life of the <see cref="SettingsWindow"/> and is shared by every
     /// page through <see cref="SettingsPageContext.Cards"/>. It also owns the focus-target registry
@@ -73,15 +73,15 @@ namespace QuickPane.UI.Settings
 
         public const double CardPadding = 16;
 
-        /// <summary>Below this card width, the control moves under the title instead of beside it
-        /// (SPEC.md, "Settings cards"). Exposed so <see cref="Card"/>'s own reflow and a unit test
-        /// agree on the same number (AC-27).</summary>
+        /// <summary>Below this card width, the control moves under the title instead of beside it.
+        /// Exposed so <see cref="Card"/>'s own reflow and a unit test agree on the same number
+        /// (AC-27).</summary>
         public const double WrapBelowWidth = 476;
 
         // Child rows line up under the parent card's title, roughly icon (20) + icon-to-label gap
         // (16), measured from the card's padded content edge; the card's own CardPadding (16) is
-        // added on top of this by the shell, for a total of 58 px from the card's true left edge
-        // (README: "widened from 42 px to 58 px so it lines up with the parent card's title").
+        // added on top of this by the shell, for a total of 58 px from the card's true left edge,
+        // which is where a child row should line up with the parent card's title.
         private const double ChildRowIndent = 42;
 
         private readonly Dictionary<string, FrameworkElement> _focusTargets =
@@ -316,12 +316,12 @@ namespace QuickPane.UI.Settings
             chevron.Unchecked += (s, e) => sync();
             sync();
 
-            // Clicking anywhere on the header (not just the chevron) toggles it, exactly like the
-            // prototype's expander-header buttons, but only when there is no separate header
-            // control to keep clickable on its own (e.g. the Desktop dock toggle must still toggle
-            // the *setting*, not the expander, when pressed). Bubbling events, not tunnelling ones:
-            // a direct click on the chevron is handled by its own ButtonBase click processing first
-            // (which marks the event handled), so this never double-toggles it.
+            // Clicking anywhere on the header (not just the chevron) toggles it, matching the
+            // Windows 11 Settings app's own expander behavior, but only when there is no separate
+            // header control to keep clickable on its own (e.g. the Desktop dock toggle must still
+            // toggle the *setting*, not the expander, when pressed). Bubbling events, not
+            // tunnelling ones: a direct click on the chevron is handled by its own ButtonBase click
+            // processing first (which marks the event handled), so this never double-toggles it.
             if (headerControl == null)
             {
                 outer.Children[0].MouseLeftButtonUp += (s, e) => chevron.IsChecked = chevron.IsChecked != true;
@@ -352,7 +352,7 @@ namespace QuickPane.UI.Settings
         }
 
         /// <summary>A plain, right-aligned child row for a trailing action, e.g. "Add group" at the
-        /// end of a Groups expander (README: no dashed "Add..." boxes).</summary>
+        /// end of a Groups expander, rather than a dashed "Add..." box.</summary>
         public DockPanel TrailingChildRow(FrameworkElement control)
         {
             var panel = new DockPanel { Margin = new Thickness(ChildRowIndent, 10, 0, 10) };
@@ -477,6 +477,35 @@ namespace QuickPane.UI.Settings
             return grid;
         }
 
+        // ---- combo box -------------------------------------------------
+
+        /// <summary>A Fluent-themed combo box with one item per (value, label) pair, selecting
+        /// whichever value matches <paramref name="current"/> (case-insensitive), or the first item
+        /// when nothing matches, and invoking <paramref name="onChanged"/> with the chosen value on
+        /// every selection change. Carries no local colour: it relies entirely on the implicit
+        /// ComboBox/ComboBoxItem styles merged into the window's Resources by
+        /// <c>FluentThemeService</c>.</summary>
+        public ComboBox Combo(IEnumerable<KeyValuePair<string, string>> options, string current,
+            Action<string> onChanged, double minWidth = 220)
+        {
+            var box = new ComboBox { MinWidth = minWidth };
+            int selected = -1;
+            int i = 0;
+            foreach (var opt in options)
+            {
+                box.Items.Add(new ComboBoxItem { Content = opt.Value, Tag = opt.Key });
+                if (string.Equals(opt.Key, current, StringComparison.OrdinalIgnoreCase)) selected = i;
+                i++;
+            }
+            box.SelectedIndex = selected >= 0 ? selected : 0;
+            box.SelectionChanged += (s, e) =>
+            {
+                var item = box.SelectedItem as ComboBoxItem;
+                if (item != null) onChanged?.Invoke((string)item.Tag);
+            };
+            return box;
+        }
+
         // ---- info bar -------------------------------------------------
 
         /// <summary>A status message card: an icon, a title, and a message, tinted by severity.</summary>
@@ -572,8 +601,8 @@ namespace QuickPane.UI.Settings
 
         // ---- subheader --------------------------------------------------
 
-        /// <summary>A sentence-case 14 px semibold subheader, for the rare page that groups cards
-        /// (SPEC.md: "24 px above, 8 px below").</summary>
+        /// <summary>A sentence-case 14 px semibold subheader, for the rare page that groups
+        /// cards.</summary>
         public TextBlock Subheader(string text)
         {
             var block = new TextBlock { Text = text, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 24, 0, 8) };
